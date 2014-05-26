@@ -316,6 +316,96 @@ Next we find the mapping from
 \end_layout
 
 \begin_layout Subsubsection
+Steady States
+\end_layout
+
+\begin_layout Standard
+The binding financial constraint yields:
+\begin_inset Formula 
+\[
+\frac{k}{n}=\xi^{\frac{1}{\theta-1}}.
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The resource constraint yields:
+\begin_inset Formula 
+\[
+\frac{c}{n}=\left(\frac{k}{n}\right)^{\theta}-\delta\frac{k}{n}.
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+From the Euler equaiton we can back out the Lagrange Multiplier which has
+ to be positive:
+\begin_inset Formula 
+\[
+\mu=1-\frac{\beta(1-\delta)-1+\xi}{\xi(1-\beta\theta)}
+\]
+
+\end_inset
+
+and then we can figure out hours as 
+\begin_inset Formula 
+\[
+n=\frac{G}{1+G}
+\]
+
+\end_inset
+
+ where 
+\begin_inset Formula 
+\[
+G\equiv\frac{1}{\alpha}\frac{1}{\frac{c}{n}}(1-\mu)(1-\theta)\frac{k}{n}^{\theta}.
+\]
+
+\end_inset
+
+Consumption and capital naturally follow from the value of hours.
+ Lastly we can find wage and dividend as:
+\begin_inset Formula 
+\[
+w=\frac{\alpha c}{1-n}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+d=c-wn
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+To guarantee steady state hours of 0.3, we need to set 
+\begin_inset Formula $\alpha$
+\end_inset
+
+ such that: 
+\begin_inset Formula 
+\[
+\alpha=\frac{7}{3}\frac{1}{c/n}(1-\mu)(1-\theta)\frac{k}{n}^{\theta}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
 Case 1: Not Binding
 \end_layout
 
@@ -344,51 +434,151 @@ Combines with the definiton of
  from labor market clearing conditon we have one equation in n:
 \begin_inset Formula 
 \[
-f(n)=\frac{1-\delta}{m_{k,t}}+n_{t}^{1-\theta}\left[\frac{\theta}{m_{k,t}}k_{t}^{\theta-1}z_{t}+\frac{1-\theta}{\alpha}z_{t}k_{t}^{\theta}\right]-n_{t}^{-\theta}\left[\frac{1-\theta}{\alpha}z_{t}k_{t}^{\theta}\right].
+f(n)\equiv\frac{1-\delta}{m_{k,t}}+n_{t}^{1-\theta}\left[\frac{\theta}{m_{k,t}}k_{t}^{\theta-1}z_{t}+\frac{1-\theta}{\alpha}z_{t}k_{t}^{\theta}\right]-n_{t}^{-\theta}\left[\frac{1-\theta}{\alpha}z_{t}k_{t}^{\theta}\right]=0.
 \]
 
 \end_inset
 
-Solving this equation with Newton's method yields the equilibirum hours.
- It is worth noting that 
+Find the root with Newton's method yields the equilibirum hours.
+ It is worth noting that this function is increasing in n on (0,1] which
+ makes it easy to check existence of solution.
+\end_layout
+
+\begin_layout Standard
+From hours we can back out consumption:
+\begin_inset Formula 
+\[
+c_{t}=\frac{1-\theta}{\alpha}(1-n_{t})z_{t}k_{t}^{\theta}n_{t}^{-\theta}
+\]
+
+\end_inset
+
+and from resource constraint we obtain capital tomorrow.
+ From budget constraint of household we obtain dividend payout.
+\end_layout
+
+\begin_layout Subsubsection
+Case 2: Binding
+\end_layout
+
+\begin_layout Standard
+Combining the binding constraint and resource constraint we obtain one equation
+ w.r.t.
+ consumption and hours
+\begin_inset Formula 
+\begin{equation}
+c_{t}=(1-\delta)k_{t}+(1-\frac{1}{\xi_{t}})z_{t}k_{t}^{\theta}n_{t}^{1-\theta}.
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The defintion of shadow value and labor market clearing conditon yields
+ two equations in consumption, hours, and Lagrange Multiplier 
+\begin_inset Formula $\mu$
+\end_inset
+
+:
+\begin_inset Formula 
+\begin{equation}
+c_{t}=\frac{1}{m_{k,t}}\left[1-\delta+(1-\mu_{t})\theta z_{t}k_{t}^{\theta-1}n_{t}^{1-\theta}\right]
+\end{equation}
+
+\end_inset
+
+
+\begin_inset Formula 
+\begin{equation}
+c_{t}=(1-n_{t})\frac{1-\theta}{\alpha}(1-\mu_{t})z_{t}k_{t}^{\theta}n_{t}^{-\theta}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+We can use the labor market clearing condition to solve for 
+\begin_inset Formula $(1-\mu_{t})\theta z_{t}k_{t}^{\theta-1}n_{t}^{1-\theta}$
+\end_inset
+
+:
+\begin_inset Formula 
+\[
+(1-\mu_{t})\theta z_{t}k_{t}^{\theta-1}n_{t}^{1-\theta}=\frac{\alpha\theta}{1-\theta}\frac{c_{t}n_{t}}{k_{t}(1-n_{t})}
+\]
+
+\end_inset
+
+substitue this into the definition of shadow value and use resource constraint
+ we have this one equation in hours:
+\begin_inset Formula 
+\begin{eqnarray*}
+f(n) & = & (1-\delta)km-(1-\delta)(km+\frac{\alpha\theta}{1-\theta})n+(1-\frac{1}{\xi})zk^{\theta}mn^{1-\theta}\\
+ & + & (\frac{1}{\xi}-1)zk^{\theta}(m+\frac{\alpha\theta}{k(1-\theta)})n^{2-\theta}-1+\delta+(1-\delta)n.
+\end{eqnarray*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+When hours is pinned down, we can continue to find the rest of variables.
+ The binding financial constraint yields
+\begin_inset Formula 
+\[
+k_{t+1}=\frac{z_{t}k_{t}^{\theta}n_{t}^{1-\theta}}{\xi_{t}}.
+\]
+
+\end_inset
+
+ The consumption follows from the resource constraint:
+\begin_inset Formula 
+\[
+c_{t}=z_{t}k_{t}^{\theta}n_{t}^{1-\theta}-k_{t+1}+(1-\delta)k_{t}.
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+From the Euler equation we can find the Lagrange Multiplier:
+\begin_inset Formula 
+\[
+\mu_{t}=1-\frac{m_{k,t}}{}
+\]
+
+\end_inset
+
+Lastly, wage and dividend can be easily found:
+\begin_inset Formula 
+\[
+w_{t}=\frac{\alpha c_{t}}{1-n_{t}}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+d_{t}=c_{t}-w_{t}n_{t}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
 \begin_inset Formula 
 \[
 \]
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Subsection
-\begin_inset CommandInset citation
-LatexCommand citet
-key "feng2011numerical"
-
-\end_inset
-
- Representation
-\end_layout
-
-\begin_layout Standard
-For computation purposes, we assume Cobb-Douglous production function and
- log-linear utility.
- Then we can collect all equilibrium conditions and rewrite them in an alternati
-ve form:
-\end_layout
-
-\begin_layout Standard
-\begin_inset Formula 
-\begin{eqnarray*}
-(1-\delta)k_{t}+z_{t}k_{t}^{\theta} & = & c_{t}+k_{t+1}\\
-\frac{1}{c_{t}}(1-\mu_{t}\xi_{t}) & = & \beta\mathbb{E}_{t}m_{k,t+1}\\
-m_{k,t} & = & \frac{1}{c_{t}}[1-\delta+(1-\mu_{t})z_{t}\theta k_{t}^{\theta-1}]\\
-\xi_{t}\left(k_{t+1}\right) & \geq & z_{t}k_{t}^{\theta}\\
-0 & = & \mu_{t}[F(z_{t},k_{t})-\xi_{t}k_{t+1}]\\
-\mu_{t} & \geq & 0\\
-w_{t} & = & (1-\mu_{t})(1-\theta)z_{t}k_{t}^{\theta}\\
-w_{t}+d_{t} & = & c_{t}
-\end{eqnarray*}
 
 \end_inset
 
@@ -684,53 +874,6 @@ reference "fig:The-Portion-of"
 \end_inset
 
 ).
-\begin_inset Wrap figure
-lines 0
-placement o
-overhang 0col%
-width "50col%"
-status collapsed
-
-\begin_layout Plain Layout
-\begin_inset Graphics
-	filename /Users/linxichen/Dropbox/jermanquadrini/code/linxi/jq_201402021701_simple_stoch_nobond_noadjustment/3dflag_new.eps
-	width 100text%
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Plain Layout
-\begin_inset Caption
-
-\begin_layout Plain Layout
-The Portion of 
-\begin_inset Formula $m_{k}$
-\end_inset
-
- survive
-\begin_inset CommandInset label
-LatexCommand label
-name "fig:The-Portion-of"
-
-\end_inset
-
-
-\end_layout
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Plain Layout
-
-\end_layout
-
-\end_inset
-
-
 \end_layout
 
 \begin_layout Itemize

@@ -58,7 +58,7 @@ using namespace thrust;
 // #define zbar 1.0
 // #define dbar 2.56514
 
-// Define an class that contains parameters
+// Define an class that contains parameters and steady states
 struct para_struct {
 	// Accuracy controls
 	int nk ;
@@ -73,15 +73,41 @@ struct para_struct {
 	double mkwidth;
 
 	// Model parameters
-	int aalpha;
-	int bbeta ;
-	int ddelta;
-	int ttheta;
-	int kkappa;
-	int ttau  ;
-	int xxibar;
-	int zbar  ;
-	int dbar  ;
+	double aalpha;
+	double bbeta ;
+	double ddelta;
+	double ttheta;
+	double kkappa;
+	double ttau  ;
+	double xxibar;
+	double zbar  ;
+	double dbar  ;
+
+	// Steady States
+	double kss;
+	double nss;
+	double css;
+	double wss;
+	double dss;
+	double mmuss;
+	double mkss;
+
+
+	// Find steady state and find aalpha based steady state target
+	__host__ __device__
+	void complete() {
+		double kovern = pow(xxibar,1/(ttheta-1));
+		double covern = pow(kovern,ttheta) - ddelta*kovern;
+		mmuss = 1 - ( bbeta*(1-ddelta)-1+ddelta )/( xxibar*(1-bbeta*ttheta)  );
+		aalpha = (7/3)*(1/covern)*(1-mmuss)*(1-ttheta)*pow(kovern,ttheta);
+		double G = ( (1-mmuss)*(1-ttheta)*pow(kovern,ttheta) ) / ( aalpha*covern );
+		nss = G/(1+G);
+		css = nss*covern;
+		kss = nss*kovern;
+		wss = aalpha*css/(1-nss);
+		dss = css - wss*nss;
+		mkss = (1-ddelta+(1-mmuss)*zbar*ttheta*pow(kss,ttheta-1)*pow(nss,ttheta-1))/css;
+	};
 };
 
 // This function fit a valuex x to a grid X of size n
@@ -108,33 +134,29 @@ int fit2grid(const double x, const int n, const double* X) {
 	}
 };
 
-/*********************************************************************************
 // The objective function for case 2
 __host__ __device__
 double objective2(double z,double k,double xxi,double m1,double n,para_struct para) {
-	return (1-para.ddelta)*k-(1-para.ddelta)/m1-(1-para.ddelta)*para.aalpha*n/(xxi*m1)
-		+ z*pow(k,para.ttheta)*pow(n,1-para.ttheta)*(1-para.ttheta/(m1*k)-para.ttheta*para.aalpha*n/(m1*xxi*k));
+	return 0;
 };
 
 // The  derivative for case 2
 __host__ __device__
 double derivative2(double z,double k,double xxi,double m1,double n,para_struct para) {
-	return -(1-ddelta)*aalpha/(xxi*m1)+(1-ttheta)*z*pow(k,ttheta)*pow(n,-ttheta)*
-		(1-ttheta/(k*m1)-ttheta*aalpha*n/(m1*xxi*k)) + z*pow(k,ttheta)*pow(n,1-ttheta)*(-ttheta*aalpha/(m1*xxi*k));
+	return 0;
 };
 
 // The objective function for case 1
 __host__ __device__
 double objective1(double z,double k,double xxi,double m1,double n) {
-	return z*pow(k,ttheta)*pow(n,-ttheta)*(m1*(1-ttheta)/aalpha -ttheta*n/k) -1 + ddelta;
+	return 0;
 };
 
 // The  derivative for case 1
 __host__ __device__
 double derivative1(double z,double k,double xxi,double m1,double n) {
-	return z*pow(k,ttheta)*pow(n,-ttheta-1)*(-ttheta*(1-ttheta)*m1/aalpha+(ttheta*ttheta-ttheta)*n/k);
+	return 0;
 };
-********************************************************************************/
 
 // Define the type function ptr that takes four double and returns one doulbe
 typedef double (* func_ptr)(double, double ,double, double, double);
@@ -178,34 +200,33 @@ double newtonlabor(double z,double k,double xxi,double m1, func_ptr obj_func, fu
 // Eureka function check whether a tuple (STATE,SHOCK,SHADOW) can survive to next iteration
 // now M4 is for stock price !!!!!!!
 __host__ __device__
-bool eureka(double k, double z, double xi,
+bool eureka(double k, double z, double xxi,
             double m1, int i_z, int i_xi,
             double* K, 
 			double* EM1_low, double* EM1_high, 
-			double MPK, double Y,
 			para_struct para) {
+	
+	// Declare control variables
+	double n, Y, MPK, kplus, c, mmu, w, d, lhs1;
+	int i_kplus;
 
-	// A test call of newtonlabor
-	func_ptr obj1_ptr = & objective1;
-	func_ptr drv1_ptr = & derivative1;
-	double test = newtonlabor(z,k,xi,m1,obj1_ptr,drv1_ptr);
 
 	// Case 1: Binding
-	double kplus = Y/xi;
-	double c = Y+(1-para.ddelta)*k-kplus;
-	double mu = 1-(m1*c-1+para.ddelta)/MPK;	
-	double w = (1-mu)*(1-para.ttheta)*Y;
-	double d = c-w;
-
-	double R = 1;
-	int i_kplus = fit2grid(kplus,para.nk,K);
-	// int i_bplus = fit2grid(bplus,nb,B);
-	double lhs1 = (1-xi*mu)/c;
+	n = 0.3;
+	Y = z*pow(k,para.ttheta)*pow(n,1-para.ttheta);
+	MPK = para.ttheta*Y/k;
+	kplus = Y/xxi;
+	c = Y+(1-para.ddelta)*k-kplus;
+	mmu = 1-(m1*c-1+para.ddelta)/MPK;	
+	w = (1-mmu)*(1-para.ttheta)*Y/n;
+	d = c-w*n;
+	i_kplus = fit2grid(kplus,para.nk,K);
+	lhs1 = (1-xxi*mmu)/c;
 	
 	if (
 		(para.bbeta*EM1_low[i_kplus+para.nk*(i_z+i_xi*para.nz)] <= lhs1) &&
 		(lhs1 <=para.bbeta*EM1_high[i_kplus+para.nk*(i_z+i_xi*para.nz)]) &&
-		(c>0) && (mu>=0) && (w>=0) //  &&  
+		(c>0) && (mmu>=0) && (w>=0) //  &&  
 		// (kplus <= K[nk-1]) && (kplus >= K[0])
 	   )
 	{
@@ -213,17 +234,20 @@ bool eureka(double k, double z, double xi,
 	};
 
 	// Case 2: Not Binding
-	mu = 0;
+	n = 0.3;
+	Y = z*pow(k,para.ttheta)*pow(n,1-para.ttheta);
+	MPK = para.ttheta*Y/k;
+	mmu = 0;
 	c = (1-para.ddelta+MPK)/m1;	
 	kplus = (1-para.ddelta)*k + Y - c;
-	w = (1-para.ttheta)*Y;
-	d = c - w;
-	lhs1 = (1-xi*mu)/c;
+	w = (1-para.ttheta)*Y/n;
+	d = c - w*n;
+	lhs1 = (1-xxi*mmu)/c;
 	i_kplus = fit2grid(kplus,para.nk,K);
 	if (
 		(para.bbeta*EM1_low[i_kplus+para.nk*(i_z+i_xi*para.nz)] <= lhs1) &&
 		(lhs1 <=para.bbeta*EM1_high[i_kplus+para.nk*(i_z+i_xi*para.nz)]) &&
-		(c>0) && (w>=0) && (xi*kplus>Y) // &&
+		(c>0) && (w>=0) && (xxi*kplus>Y) // &&
 		// (kplus <= K[nk-1]) && (kplus >= K[0])
 	   )
 	{
@@ -292,7 +316,7 @@ struct RHS
 			int i_m1 = m_index;
 			double m1=m1min+double(i_m1)*step1;
 			if (eureka(k,z,xi,m1,i_z,i_xi,K,
-				EM1_low,EM1_high,MPK,Y))
+				EM1_low,EM1_high,para))
 			{
 				tempflag++;
 				i_m1_max = i_m1;
@@ -307,7 +331,7 @@ struct RHS
 			int i_m1 = m_index;
 			double m1=m1min+double(i_m1)*step1;
 			if (eureka(k,z,xi,m1,i_z,i_xi,K,
-				EM1_low,EM1_high,MPK,Y))
+				EM1_low,EM1_high,para))
 			{
 				tempflag++;
 				if (i_m1 > i_m1_max) i_m1_max = i_m1;
@@ -351,22 +375,22 @@ struct myDist {
 // Main
 int main()
 {
-	// Set Parameters
+	// Initialize Parameters
 	para_struct para;
 
 	// Set Accuracy Parameters
 	para.nk = 256;
 	para.nb = 1 ;
 	para.nz = 3;
-	para.nxi = 3;
+	para.nxxi = 3;
 	para.nm1 = 256 ;
 	para.tol = 1e-10;
-	para.maxiter = 1;
+	para.maxiter = 1000;
 	para.kwidth = 2.0 ;
 	para.bwidth = 1.15 ;
 	para.mkwidth = 15.0 ; 
 
-	para.aalpha = 1.8834;
+	// Set Model Parameters
 	para.bbeta = 0.9825;
 	para.ddelta = 0.025;
 	para.ttheta = 0.36;
@@ -374,34 +398,19 @@ int main()
 	para.ttau = 0.3500;
 	para.xxibar = 0.1634;
 	para.zbar = 1.0;
-	para.dbar = 2.56514;
 
-	// Steady-State calculation
-	double zss = 1;
-	double nss = 1;
-		
-	double mmuss = 0;
-	double kss = pow((1/para.bbeta-1+para.ddelta)/para.ttheta,1/(para.ttheta-1));
-	double css = pow(kss,para.ttheta)+(1-para.ddelta)*kss-kss;
-	double wss = (1-para.ttheta)*pow(kss,para.ttheta);
-	double dss = css - wss;
-	double pss = dss/(1-para.bbeta);
-	double lhsfc = para.xxibar*kss;
-	double rhsfc = pow(kss,para.ttheta);
-	double mkss = (1-para.ddelta+para.ttheta*pow(kss,para.ttheta-1))/css;
-	double msss = pss/css;
-	
-	cout << setprecision(16) << "kss: " << kss << endl;
+	// "Complete" parameters by finding aalpha s.t. n=0.3
+	para.complete();
+
+	cout << setprecision(16) << "kss: " << para.kss << endl;
 	cout << setprecision(16) << "zss: " << para.zbar << endl;
 	cout << setprecision(16) << "xxiss: " <<para.xxibar << endl;
-	cout << setprecision(16) << "mkss: " << mkss << endl;
-	cout << setprecision(16) << "dss: " << dss << endl;
-	cout << setprecision(16) << "css: " << css << endl;
-	cout << setprecision(16) << "nss: " << nss << endl;
-	cout << setprecision(16) << "wss: " << wss << endl;
-	cout << setprecision(16) << "mmuss: " << mmuss << endl;
-	cout << setprecision(16) << "lhsfc: " << lhsfc << endl;
-	cout << setprecision(16) << "rhsfc: " << rhsfc << endl;
+	cout << setprecision(16) << "mkss: " << para.mkss << endl;
+	cout << setprecision(16) << "dss: " << para.dss << endl;
+	cout << setprecision(16) << "css: " << para.css << endl;
+	cout << setprecision(16) << "nss: " << para.nss << endl;
+	cout << setprecision(16) << "wss: " << para.wss << endl;
+	cout << setprecision(16) << "mmuss: " << para.mmuss << endl;
 
 	// Select Device
 	int num_devices;
@@ -418,10 +427,10 @@ int main()
 	host_vector<double> h_Z(para.nz);
 	host_vector<double> h_XI(para.nxxi);
 
-	host_vector<double> h_V1_low(para.nk*para.nz*para.nxxi, 1/para.mkwidth*mkss);
-	host_vector<double> h_V1_high(para.nk*para.nz*para.nxi,para.mkwidth*mkss);
-	host_vector<double> h_Vplus1_low(para.nk*para.nz*para.nxxi,1/para.mkwidth*mkss);
-	host_vector<double> h_Vplus1_high(para.nk*para.nz*para.nxxi,para.mkwidth*mkss);
+	host_vector<double> h_V1_low(para.nk*para.nz*para.nxxi, 1/para.mkwidth*para.mkss);
+	host_vector<double> h_V1_high(para.nk*para.nz*para.nxxi,para.mkwidth*para.mkss);
+	host_vector<double> h_Vplus1_low(para.nk*para.nz*para.nxxi,1/para.mkwidth*para.mkss);
+	host_vector<double> h_Vplus1_high(para.nk*para.nz*para.nxxi,para.mkwidth*para.mkss);
 
 	host_vector<double> h_EM1_low(para.nk*para.nz*para.nxxi,0.0);
 	host_vector<double> h_EM1_high(para.nk*para.nz*para.nxxi,0.0);
@@ -430,8 +439,8 @@ int main()
 	host_vector<double> h_flag(para.nk*para.nz*para.nxxi, 0); 
 	
 	// initialize capital grid
-	double minK = 1/para.kwidth*kss;
-	double maxK = para.kwidth*kss;
+	double minK = 1/para.kwidth*para.kss;
+	double maxK = para.kwidth*para.kss;
 	double step = (maxK-minK)/double(para.nk-1);
 	for (int i_k = 0; i_k < para.nk; i_k++) {
 		h_K[i_k] = minK + step*double(i_k);
@@ -440,15 +449,15 @@ int main()
 	// initialize TFP shock grid
 	double minZ = 0.8*para.zbar;
 	double maxZ = 1.2*para.zbar;
-	step = (nz>1)?(maxZ - minZ)/double(nz-1): 0;
-	for (int i_z = 0; i_z < nz; i_z++) {
+	step = (para.nz>1)?(maxZ - minZ)/double(para.nz-1): 0;
+	for (int i_z = 0; i_z < para.nz; i_z++) {
 		h_Z[i_z] = minZ + step*double(i_z);
 	};
 
 	// initialize financial shock grid
 	double minXI = 0.8*para.xxibar;
 	double maxXI = 1.2*para.xxibar;
-	step = (nxi>1)? (maxXI - minXI)/double(para.nxxi-1): 0;
+	step = (para.nxxi>1)? (maxXI - minXI)/double(para.nxxi-1): 0;
 	for (int i_xi = 0; i_xi < para.nxxi; i_xi++) {
 		h_XI[i_xi] = minXI + step*double(i_xi);
 	};
@@ -490,7 +499,7 @@ int main()
 
 	// Firstly a virtual index array from 0 to nk*nk*nz
 	counting_iterator<int> begin(0);
-	counting_iterator<int> end(nk*nz*nxi);
+	counting_iterator<int> end(para.nk*para.nz*para.nxxi);
 
 	// Start Timer
 	cudaEvent_t start, stop;
@@ -506,57 +515,32 @@ int main()
 	cublasCreate(&handle);
 	
 	double diff = 10; double dist; int iter = 0;
-	while ((diff>tol)&&(iter<maxiter)){
+	while ((diff>para.tol)&&(iter<para.maxiter)){
 		// Find EMs for low and high 
 		cublasDgemm(handle,
-				CUBLAS_OP_N,  
-				CUBLAS_OP_T,
-				nk*nb, nz*nxi, nz*nxi,
-				&alpha,
-				d_V1_low_ptr, 
-				nk*nb, 
-				d_P_ptr,
-				nz*nxi,
-				&beta,
-				d_EM1_low_ptr,
-				nk*nb);
+			CUBLAS_OP_N,  
+			CUBLAS_OP_T,
+			para.nk*para.nb, para.nz*para.nxxi, para.nz*para.nxxi,
+			&alpha,
+			d_V1_low_ptr, 
+			para.nk*para.nb, 
+			d_P_ptr,
+			para.nz*para.nxxi,
+			&beta,
+			d_EM1_low_ptr,
+			para.nk*para.nb);
 		cublasDgemm(handle,
-				CUBLAS_OP_N,  
-				CUBLAS_OP_T,
-				nk*nb, nz*nxi, nz*nxi,
-				&alpha,
-				d_V1_high_ptr,  
-				nk*nb,      
-				d_P_ptr,
-				nz*nxi,
-				&beta,
-				d_EM1_high_ptr,
-				nk*nb);
-
-		// cublasDgemm(handle,
-		// 		CUBLAS_OP_N,  
-		// 		CUBLAS_OP_T,
-		// 		nk*nb, nz*nxi, nz*nxi,
-		// 		&alpha,
-		// 		d_V4_low_ptr, 
-		// 		nk*nb, 
-		// 		d_P_ptr,
-		// 		nz*nxi,
-		// 		&beta,
-		// 		d_EM4_low_ptr,
-		// 		nk*nb);
-		// cublasDgemm(handle,
-		// 		CUBLAS_OP_N,  
-		// 		CUBLAS_OP_T,
-		// 		nk*nb, nz*nxi, nz*nxi,
-		// 		&alpha,
-		// 		d_V4_high_ptr,  
-		// 		nk*nb,      
-		// 		d_P_ptr,
-		// 		nz*nxi,
-		// 		&beta,
-		// 		d_EM4_high_ptr,
-		// 		nk*nb);
+			CUBLAS_OP_N,  
+			CUBLAS_OP_T,
+			para.nk*para.nb, para.nz*para.nxxi, para.nz*para.nxxi,
+			&alpha,
+			d_V1_high_ptr, 
+			para.nk*para.nb, 
+			d_P_ptr,
+			para.nz*para.nxxi,
+			&beta,
+			d_EM1_high_ptr,
+			para.nk*para.nb);
 
 		// Directly find the new Value function
 		thrust::for_each(
@@ -632,6 +616,7 @@ int main()
 	ofstream fout_mmu("mmucuda.csv", ios::trunc); ofstream fout_P("Pcuda.csv", ios::trunc);
 	ofstream fout_flag("flagcuda.csv", ios::trunc);
 	
+	/********************************************************************************
 	for (int index=0; index<nk*nb*nz*nxi; index++) {
 		fout_V1_low << h_V1_low[index] << '\n';
 		fout_V1_high << h_V1_high[index] << '\n';
@@ -642,18 +627,17 @@ int main()
 		double m1 = (h_V1_low[index]+h_V1_low[index])/2;
 		double k =h_K[i_k];
 		// double b =h_B[i_b];
-		double z=h_Z[i_z]; double xi=h_XI[i_xi];
-		double Y = z*pow(k,ttheta);
+		double z=h_Z[i_z]; double xxi=h_XI[i_xi];
+		double Y = z*pow(k,para.ttheta);
 		double MPK = ttheta*pow(k,ttheta-1);
 
 		// Case 1: Binding
-		double kplus = Y/xxibar;
-		double c = Y+(1-ddelta)*k-kplus;
-		double mu = 1-(m1*c-1+ddelta)/MPK;	
-		double w = (1-mu)*(1-ttheta)*Y;
+		double kplus = Y/xxi;
+		double c = Y+(1-para.ddelta)*k-kplus;
+		double mmu = 1-(m1*c-1+para.ddelta)/MPK;	
+		double w = (1-mu)*(1-para.ttheta)*Y;
 		double d = c-w;
 
-		// int i_bplus = fit2grid(bplus,nb,B);
 	
 		if ( (mu>=0) )
 		{
@@ -662,12 +646,12 @@ int main()
 			fout_R << 1 << '\n';
 			fout_d << d << '\n';
 			fout_n << 1 << '\n';
-			fout_mmu << mu << '\n';
+			fout_mmu << mmu << '\n';
 		} else {
 			mu = 0;
-			c = (1-ddelta+MPK)/m1;	
-			kplus = (1-ddelta)*k + Y - c;
-			w = (1-ttheta)*Y;
+			c = (1-para.ddelta+MPK)/m1;	
+			kplus = (1-para.ddelta)*k + Y - c;
+			w = (1-para.ttheta)*Y;
 			d = c - w;
 			fout_kopt << kplus << '\n';
 			fout_copt << c << '\n';
@@ -695,6 +679,7 @@ int main()
 	for (int i=0; i<nz*nxi*nz*nxi; i++) {
 		fout_P << h_P[i] << '\n';
 	};
+*******************************************************************************/
 
 	fout_V1_low.close(); fout_V1_high.close();
 	fout_Kgrid.close();

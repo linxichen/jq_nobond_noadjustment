@@ -15,7 +15,7 @@ This is a project that tries to solve a variant of Jermann Quadrini (2012 AER) w
 + Implement linearization solution as a initial guess.
 + Implement Newton's method as generic as possible. Maybe use a `class` to contain function and derivative, if not too slow.
 + Make everything more portable/systematic:
-	+ Use a class to contain model parameters and solution specific parameters.
+	+ ~~Use a class to contain model parameters and solution specific parameters.~~
 	+ Put helper functions into appropriate header.
 	+ Figure out a way to separate model "things" from solution "things". Model things like steady states, eureka should be put in a different header file. But the difficulty lies in the unpredictable (even at compile time) number/dimension of objects. For example, different models have different number of endogenous state variables and shocks, then how should we deal with grid point creation and initial guess? Maybe a multidimensional matrix/array can deal with this, but this would be henious to read and Juan wouldn't like it.
 
