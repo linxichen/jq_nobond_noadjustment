@@ -4,12 +4,11 @@
 This is a project that tries to solve a variant of Jermann Quadrini (2012 AER) without debt and adjustment. I try to solve it in two ways: Adrian's method and projection method. My guess is that projection method should be much faster than Adrian's method. It should solve the model within 5 seconds if given a good initial guess.
 
 ## Folder and Files
-+ /
-+ cppcode.cpp: source code that **has** to be compiled by GCC4.8+
-+ cudacode.cu: source code that **has** to be compiled by NVCC 5.5+
-+ Model: contains LyX and PDF that describe the model.
-+ MATLAB: contains some codes written in MATLAB
-+ Dynare: contains some codes written in Dynare
++ /cppcode.cpp: source code that **has** to be compiled by GCC4.8+
++ /cudacode.cu: source code that **has** to be compiled by NVCC 5.5+
++ /Model/: contains LyX and PDF that describe the model.
++ /MATLAB/: contains some codes written in MATLAB
++ /Dynare/: contains some codes written in Dynare
 
 ## Goal
 + Both methods yields the same solution. Can also use Value Function Iteration to check?
