@@ -1,0 +1,45 @@
+<p><link href="https://gist.githubusercontent.com/tuzz/3331384/raw/94f2380c2b798fab2139fd0a8f478c4f2d642e3b/github.css" rel="stylesheet"></link></p>
+
+<h2>Overview</h2>
+
+<p>This is a project that tries to solve a variant of Jermann Quadrini (2012 AER) without debt and adjustment. I try to solve it in two ways: Adrian&rsquo;s method and projection method. My guess is that projection method should be much faster than Adrian&rsquo;s method. It should solve the model within 5 seconds if given a good initial guess.</p>
+
+<h2>Folder and Files</h2>
+
+<ul>
+<li>/</li>
+<li>cppcode.cpp: source code that <strong>has</strong> to be compiled by GCC4.8+</li>
+<li>cudacode.cu: source code that <strong>has</strong> to be compiled by NVCC 5.5+</li>
+<li>Model: contains LyX and PDF that describe the model.</li>
+<li>MATLAB: contains some codes written in MATLAB</li>
+<li>Dynare: contains some codes written in Dynare</li>
+</ul>
+
+
+<h2>Goal</h2>
+
+<ul>
+<li>Both methods yields the same solution. Can also use Value Function Iteration to check?</li>
+<li>Implement linearization solution as a initial guess.</li>
+<li>Implement Newton&rsquo;s method as generic as possible. Maybe use a <code>class</code> to contain function and derivative, if not too slow.</li>
+<li>Make everything more portable/systematic:
+
+<ul>
+<li>Use a class to contain model parameters and solution specific parameters.</li>
+<li>Put helper functions into appropriate header.</li>
+<li>Figure out a way to separate model &ldquo;things&rdquo; from solution &ldquo;things&rdquo;. Model things like steady states, eureka should be put in a different header file. But the difficulty lies in the unpredictable (even at compile time) number/dimension of objects. For example, different models have different number of endogenous state variables and shocks, then how should we deal with grid point creation and initial guess? Maybe a multidimensional matrix/array can deal with this, but this would be henious to read and Juan wouldn&rsquo;t like it.</li>
+</ul>
+</li>
+</ul>
+
+
+<h2>To-do List</h2>
+
+<ul>
+<li>Use parameter structure to replace <code>#define</code> parameters.</li>
+<li>A generic way to compute steady states</li>
+<li>Writes the eureka function, assuming n = 0.3 always</li>
+<li>Shamelessly clone the safe Newton&rsquo;s method in <em>Numerical Recipes</em>. Hopefully the function object thing isn&rsquo;t too slow. If it is then I function pointer it is. I just need to wrap another layer of function around the one that&rsquo;s depend on endogenuous variables.</li>
+<li>Write objective and derivative functions in both cases, and finishes eureka</li>
+</ul>
+

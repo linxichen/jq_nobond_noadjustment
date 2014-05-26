@@ -1,0 +1,19 @@
+<p><link href="http://kevinburke.bitbucket.org/markdowncss/markdown.css" rel="stylesheet"></link></p>
+
+<h2>Overview</h2>
+
+<p>This is a project that tries to solve a variant of Jermann Quadrini (2012 AER) without debt and adjustment. I try to solve it in two ways :</p>
+
+<ul>
+<li>Adrian&rsquo;s method</li>
+<li>Projection Method (Fixed Point Iteration w/ Chebyshev Collocation)</li>
+</ul>
+
+
+<h2>To-do List</h2>
+
+<ol>
+<li>Use parameter structure to replace <code>#define</code> parameters.</li>
+<li>Item 2</li>
+</ol>
+
