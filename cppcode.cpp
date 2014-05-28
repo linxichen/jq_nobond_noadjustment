@@ -83,16 +83,33 @@ void ind2sub(int length_size, int* siz_vec, int index, int* subs) {
 	};
 };
 
+// Create a equal-distance grid
+void linspace(double min, double max, int N, double* grid) {
+	double step  = (max-min)/(N-1);
+	for (int i = 0; i < N; i++) {
+		grid[i] = min + step*i;
+	};
+};
+
+// Create a grid based on chebyshev roots
+void chebyspace(double min, double max, int N, double* grid) {
+	chebyroots_cpp(N, grid);
+	fromchebydomain(min, max, N, grid);
+};
+
+// Define a type of function pointer
+typedef void (*gridgen_fptr)(double, double, int, double*);
+
 // This function follows notation from Tauchen 1986 the vector case using Armadillo
-void tauchen_vec(int M, int N, int m, double* A_ptr, double* Ssigma_e_ptr, double* Z_ptr, double* P_ptr) {
+void tauchen_vec(int M, int N, int m, double* A_ptr, double* Ssigma_e_ptr, double* Z_ptr, double* P_ptr, gridgen_fptr gridgen) {
 // Purpose:		Discretize y_t = A*y_t-1 + epsilon_t, where var(epsilon_t)=Ssigma_e
 // 				y_t is an M by 1 vector
 //
 // Input:		M = # of shocks
 // 				N = # of grid points for each shock
 // 				m = # of s.d. away from mean should we use as bounds 
-// 				A = Autocorrelation matrix
-// 				Ssigma_e = variance-convariance matrix
+// 				A = Autocorrelation matrix, stored in array 
+// 				Ssigma_e = variance-convariance matrix, stored in array
 //
 // Output:		Z = Vectorized N by M matrix where each column stores grids
 // 				P = Vectorized transition matrix (N^M by N^M)
@@ -112,31 +129,19 @@ void tauchen_vec(int M, int N, int m, double* A_ptr, double* Ssigma_e_ptr, doubl
 	vec Ssigma_y_vec = inv( eye(M*M,M*M) - kron(A,A) ) * Ssigma_e_vec;
 	mat Ssigma_y = reshape(Ssigma_y_vec,M,M);
 	A.print("Autocorr Matrix:");
+	Ssigma_e.print("Var-Cove Matrix of Innovations:");
 	Ssigma_y.print("Var-Cov Matrix of Observables:");
 
 	// 3. Create Grids. Assuming same # of grid points for each shock
 	mat grids(M,N); // collects grid points here
-	 
-		// Option 1: Just Linspace
-		// for (int i_shock=0; i_shock<M; i_shock++) {
-		// 	double minshock = -m*sqrt(Ssigma_y(i_shock,i_shock));
-		// 	double maxshock = +m*sqrt(Ssigma_y(i_shock,i_shock));
-		// 	grids.row(i_shock) = trans(linspace(minshock,maxshock,N));
-		// };
-		// grids.print("Grids:");
-
-		// Option 2: Chebyshev Nodes
-		for (int i_shock=0; i_shock<M; i_shock++) {
-			double minshock = -m*sqrt(Ssigma_y(i_shock,i_shock));
-			double maxshock = +m*sqrt(Ssigma_y(i_shock,i_shock));
-			cout << "minshock is: " << minshock << endl;
-			cout << "maxshock is: " << maxshock << endl;
-			vec temp_roots(N);
-			chebyroots_cpp(N, temp_roots.memptr());
-			fromchebydomain(minshock, maxshock, N, temp_roots.memptr());
-			grids.row(i_shock) = trans(temp_roots);
-		};
-		grids.print("Grids:");
+	for (int i_shock=0; i_shock<M; i_shock++) {
+		double minshock = -m*sqrt(Ssigma_y(i_shock,i_shock));
+		double maxshock = +m*sqrt(Ssigma_y(i_shock,i_shock));
+		vec temp_grid(N);
+		gridgen(minshock,maxshock,N,temp_grid.memptr());
+		grids.row(i_shock) = trans(temp_grid);
+	};
+	grids.print("Grids:");
 
 	// 4. Compute Transition Matrix
 	mat P(pow(N,M),pow(N,M));

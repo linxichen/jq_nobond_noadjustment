@@ -60,6 +60,14 @@ struct para_struct {
 	double xxibar;
 	double zbar  ;
 	double dbar  ;
+	double rrhozz;
+	double rrhozxxi;
+	double rrhoxxiz;
+	double rrhoxxixxi;
+	double var_epsz;
+	double var_epsxxi;
+	double A[4];
+	double Ssigma_e[4];
 
 	// Steady States
 	double kss;
@@ -322,17 +330,22 @@ struct myDist {
 
 int main()
 {
+	// Testing ground
+	double test[10];
+	linspace(0,1,10,test);
+	display_vec(test,10);
+
 	// Initialize Parameters
 	para_struct para;
 
 	// Set Accuracy Parameters
 	para.nk = 256;
 	para.nb = 1 ;
-	para.nz = 3;
-	para.nxxi = 3;
+	para.nz = 11;
+	para.nxxi = 11;
 	para.nm1 = 256 ;
 	para.tol = 0.00001;
-	para.maxiter = 2e4;
+	para.maxiter = 1;
 	para.kwidth = 1.3 ;
 	para.bwidth = 1.15 ;
 	para.mkwidth = 5.0 ; 
@@ -345,6 +358,14 @@ int main()
 	para.ttau = 0.3500;
 	para.xxibar = 0.1;
 	para.zbar = 1.0;
+	para.A[0] = 0.9457;
+	para.A[1] = 0.0321;
+	para.A[2] =-0.0091;
+	para.A[3] = 0.9703;
+	para.Ssigma_e[0] = 0.0045*0.0045;
+	para.Ssigma_e[1] = 0.0;
+	para.Ssigma_e[2] = 0.0;
+	para.Ssigma_e[3] = 0.0098*0.0098;
 
 	// "Complete" parameters by finding aalpha s.t. n=0.3. Also find all S-S
 	para.complete();
@@ -374,7 +395,7 @@ int main()
 	// Create all STATE, SHOCK grids here
 	host_vector<double> h_K(para.nk); 
 	host_vector<double> h_Z(para.nz);
-	host_vector<double> h_XI(para.nxxi);
+	host_vector<double> h_XXI(para.nxxi);
 
 	host_vector<double> h_V1_low(para.nk*para.nz*para.nxxi, 1/para.mkwidth*para.mkss);
 	host_vector<double> h_V1_high(para.nk*para.nz*para.nxxi,para.mkwidth*para.mkss);
@@ -387,7 +408,7 @@ int main()
 	host_vector<double> h_P(para.nz*para.nxxi*para.nz*para.nxxi, 1.0/double(para.nz*para.nxxi)); // No Tauchen yet
 	host_vector<double> h_flag(para.nk*para.nz*para.nxxi, 0); 
 	
-	// initialize capital grid
+	// Create capital grid
 	double minK = 1/para.kwidth*para.kss;
 	double maxK = para.kwidth*para.kss;
 	double step = (maxK-minK)/double(para.nk-1);
@@ -396,26 +417,21 @@ int main()
 	};
 	save_vec(h_K,para.nk,"test.csv");
 
-	// initialize TFP shock grid
-	double minZ = 0.8*para.zbar;
-	double maxZ = 1.2*para.zbar;
-	step = (para.nz>1)?(maxZ - minZ)/double(para.nz-1): 0;
-	for (int i_z = 0; i_z < para.nz; i_z++) {
-		h_Z[i_z] = minZ + step*double(i_z);
-	};
-
-	// initialize financial shock grid
-	double minXI = 0.8*para.xxibar;
-	double maxXI = 1.2*para.xxibar;
-	step = (para.nxxi>1)? (maxXI - minXI)/double(para.nxxi-1): 0;
-	for (int i_xi = 0; i_xi < para.nxxi; i_xi++) {
-		h_XI[i_xi] = minXI + step*double(i_xi);
+	// Create shocks grids
+	host_vector<double> h_shockgrids(2*para.nz);
+	double* h_shockgrids_ptr = raw_pointer_cast(h_shockgrids.data());
+	double* h_P_ptr = raw_pointer_cast(h_P.data());
+	gridgen_fptr linspace_fptr = &linspace; // select linspace as grid gen
+	tauchen_vec(2,para.nz,4,para.A,para.Ssigma_e,h_shockgrids_ptr,h_P_ptr,linspace_fptr);
+	for (int i_shock = 0; i_shock < para.nz; i_shock++) {
+		h_Z[i_shock] = h_shockgrids[i_shock+0*para.nz];
+		h_XXI[i_shock] = h_shockgrids[i_shock+1*para.nz];
 	};
 
 	// Copy to the device
 	device_vector<double> d_K = h_K;
 	device_vector<double> d_Z = h_Z;
-	device_vector<double> d_XI = h_XI;
+	device_vector<double> d_XXI = h_XXI;
 
 	device_vector<double> d_V1_low = h_V1_low;
 	device_vector<double> d_V1_high = h_V1_high;
@@ -433,7 +449,7 @@ int main()
 	// Obtain device pointers to be used by cuBLAS
 	double* d_K_ptr = raw_pointer_cast(d_K.data());
 	double* d_Z_ptr = raw_pointer_cast(d_Z.data());
-	double* d_XI_ptr = raw_pointer_cast(d_XI.data());
+	double* d_XXI_ptr = raw_pointer_cast(d_XXI.data());
 
 	double* d_V1_low_ptr = raw_pointer_cast(d_V1_low.data());
 	double* d_V1_high_ptr = raw_pointer_cast(d_V1_high.data());
@@ -496,7 +512,7 @@ int main()
 		thrust::for_each(
 			begin,
 			end,
-			RHS(d_K_ptr, d_Z_ptr, d_XI_ptr,
+			RHS(d_K_ptr, d_Z_ptr, d_XXI_ptr,
 				d_V1_low_ptr,
 				d_V1_high_ptr,
 				d_Vplus1_low_ptr,
@@ -563,13 +579,11 @@ int main()
 	ofstream fout_wage("wagecuda.csv", ios::trunc);
 	ofstream fout_d("dcuda.csv", ios::trunc); ofstream fout_n("ncuda.csv", ios::trunc);
 	ofstream fout_Kgrid("Kgridcuda.csv", ios::trunc);
-	ofstream fout_Zgrid("Zgridcuda.csv", ios::trunc); ofstream fout_XIgrid("XIgridcuda.csv", ios::trunc);
+	ofstream fout_Zgrid("Zgridcuda.csv", ios::trunc); ofstream fout_XXIgrid("XXIgridcuda.csv", ios::trunc);
 	ofstream fout_mmu("mmucuda.csv", ios::trunc); ofstream fout_P("Pcuda.csv", ios::trunc);
 	ofstream fout_flag("flagcuda.csv", ios::trunc);
 	
 	double ttheta = para.ttheta;
-	double ddelta = para.ddelta;
-	double aalpha = para.aalpha;
 	int nk = para.nk;
 	int nz = para.nz;
 	int nxxi = para.nxxi;
@@ -579,7 +593,7 @@ int main()
 		int i_k = index - i_xxi*nk*nz - i_z*nk ;
 		double m1 = (h_V1_low[index]+h_V1_low[index])/2;
 		double k =h_K[i_k];
-		double z=h_Z[i_z]; double xxi=h_XI[i_xxi];
+		double z=h_Z[i_z]; double xxi=h_XXI[i_xxi];
 		double zkttheta = z*pow(k,ttheta);
 
 		// Declare control variables
@@ -628,7 +642,7 @@ int main()
 		fout_Zgrid << h_Z[i] << '\n';
 	};
 	for (int i=0; i<nxxi; i++) {
-		fout_XIgrid << h_XI[i] << '\n';
+		fout_XXIgrid << h_XXI[i] << '\n';
 	};
 	for (int i=0; i<nz*nxxi*nz*nxxi; i++) {
 		fout_P << h_P[i] << '\n';
@@ -636,7 +650,7 @@ int main()
 
 	fout_V1_low.close(); fout_V1_high.close();
 	fout_Kgrid.close();
-	fout_Zgrid.close(); fout_XIgrid.close();
+	fout_Zgrid.close(); fout_XXIgrid.close();
 	fout_kopt.close(); fout_copt.close();
 	fout_R.close(); fout_d.close();
 	fout_n.close(); fout_mmu.close(); fout_P.close();

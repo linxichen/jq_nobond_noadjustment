@@ -5,7 +5,7 @@ This is a project that tries to solve a variant of Jermann Quadrini (2012 AER) w
 
 ## Folder and Files
 + /cppcode.cpp: source code that **has** to be compiled by GCC4.8+
-+ /cuda\_helpers.cuh: source code that **has** to be compiled by NVCC 5.5+
++ /cuda\_helpers.h: source code that **has** to be compiled by NVCC 5.5+
 + /Model/: contains LyX and PDF that describe the model.
 + /MATLAB/: contains some codes written in MATLAB
 + /Dynare/: contains some codes written in Dynare
@@ -25,7 +25,7 @@ This is a project that tries to solve a variant of Jermann Quadrini (2012 AER) w
 + ~~Writes the eureka function, assuming n = 0.3 always~~
 + ~~Compare steady state with Dynare. Fix the negative wage issue.~~
 + ~~Shamelessly clone the safe Newton's method in *Numerical Recipes*. Hopefully the function object thing isn't too slow. If it is then I function pointer it is. I just need to wrap another layer of function around the one that's depend on endogenuous variables.~~
-+ Improve tauchen by allowing function pointer to generate grids.
-+ Use tauchen in generating grids.
++ ~~Improve tauchen by allowing function pointer to generate grids.~~
++ ~~Use tauchen in generating grids.~~
 + Compare speed of function pointer v.s. functor approach in finding Newton' method
 + ~~Write objective and derivative functions in both cases, and finishes eureka.~~

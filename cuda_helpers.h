@@ -28,16 +28,26 @@ int fit2grid(const double x, const int n, const double* X) {
 	}
 };
 
-// A function template to display vectors
+// A function template to display vectors, C array style
 template <class T>
 __host__ __device__
 void display_vec(T vec, int size) {
 	for (int i = 0; i < size; i++) {
-		std::printf("The %ith element = %f", i, vec[i]);
+		std::printf("The %ith element, @[%i] = %f\n", i+1, i, vec[i]);
 	};
 };
 
-// A function template to save vectors to file
+// A function template to display vectors, std::vector style
+template <class T>
+__host__ __device__
+void display_vec(T vec) {
+	int size = vec.size();
+	for (int i = 0; i < size; i++) {
+		std::printf("The %ith element, @[%i] = %f\n", i+1, i, vec[i]);
+	};
+};
+
+// A function template to save vectors to file, C array style
 template <class T>
 void save_vec(T vec, int size, std::string filename ) {
 	std::ofstream fileout(filename.c_str(), std::ofstream::trunc);
@@ -46,6 +56,17 @@ void save_vec(T vec, int size, std::string filename ) {
 	};
 	fileout.close();
 
+};
+
+// A function template to save vectors to file, std::vector style
+template <class T>
+void save_vec(T vec, std::string filename ) {
+	int size = vec.size();
+	std::ofstream fileout(filename.c_str(), std::ofstream::trunc);
+	for (int i = 0; i < size; i++) {
+		fileout << vec[i] << '\n';
+	};
+	fileout.close();
 };
 
 // Newton's Method with bracketing, i.e. we know on two points the function differs in sign.
