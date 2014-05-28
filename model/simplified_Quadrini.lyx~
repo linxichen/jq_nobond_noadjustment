@@ -406,59 +406,7 @@ To guarantee steady state hours of 0.3, we need to set
 \end_layout
 
 \begin_layout Subsubsection
-Case 1: Not Binding
-\end_layout
-
-\begin_layout Standard
-First we know 
-\begin_inset Formula $\mu_{t}=0$
-\end_inset
-
-.
- Labor market clearing condition yields
-\begin_inset Formula 
-\[
-\frac{\alpha c_{t}}{1-n_{t}}=(1-\theta)z_{t}k_{t}^{\theta}n_{t}^{-\theta}
-\]
-
-\end_inset
-
-Combines with the definiton of 
-\begin_inset Formula $m_{k,t}$
-\end_inset
-
- and eliminates 
-\begin_inset Formula $c_{t}$
-\end_inset
-
- from labor market clearing conditon we have one equation in n:
-\begin_inset Formula 
-\[
-f(n)\equiv\frac{1-\delta}{m_{k,t}}+n_{t}^{1-\theta}\left[\frac{\theta}{m_{k,t}}k_{t}^{\theta-1}z_{t}+\frac{1-\theta}{\alpha}z_{t}k_{t}^{\theta}\right]-n_{t}^{-\theta}\left[\frac{1-\theta}{\alpha}z_{t}k_{t}^{\theta}\right]=0.
-\]
-
-\end_inset
-
-Find the root with Newton's method yields the equilibirum hours.
- It is worth noting that this function is increasing in n on (0,1] which
- makes it easy to check existence of solution.
-\end_layout
-
-\begin_layout Standard
-From hours we can back out consumption:
-\begin_inset Formula 
-\[
-c_{t}=\frac{1-\theta}{\alpha}(1-n_{t})z_{t}k_{t}^{\theta}n_{t}^{-\theta}
-\]
-
-\end_inset
-
-and from resource constraint we obtain capital tomorrow.
- From budget constraint of household we obtain dividend payout.
-\end_layout
-
-\begin_layout Subsubsection
-Case 2: Binding
+Case 1: Binding
 \end_layout
 
 \begin_layout Standard
@@ -517,8 +465,8 @@ substitue this into the definition of shadow value and use resource constraint
  we have this one equation in hours:
 \begin_inset Formula 
 \begin{eqnarray*}
-f(n) & = & (1-\delta)km-(1-\delta)(km+\frac{\alpha\theta}{1-\theta})n+(1-\frac{1}{\xi})zk^{\theta}mn^{1-\theta}\\
- & + & (\frac{1}{\xi}-1)zk^{\theta}(m+\frac{\alpha\theta}{k(1-\theta)})n^{2-\theta}-1+\delta+(1-\delta)n.
+f(n) & = & (1-\delta)km+\delta-1+(1-\delta)(1-km-\frac{\alpha\theta}{1-\theta})n+(1-\frac{1}{\xi})zk^{\theta}mn^{1-\theta}\\
+ & + & (\frac{1}{\xi}-1)zk^{\theta}(m+\frac{\alpha\theta}{k(1-\theta)})n^{2-\theta}+(1-\delta)n.
 \end{eqnarray*}
 
 \end_inset
@@ -551,7 +499,7 @@ c_{t}=z_{t}k_{t}^{\theta}n_{t}^{1-\theta}-k_{t+1}+(1-\delta)k_{t}.
 From the Euler equation we can find the Lagrange Multiplier:
 \begin_inset Formula 
 \[
-\mu_{t}=1-\frac{m_{k,t}c_{t}-1+\delta}{MPK_{t}}
+\mu_{t}=1-\frac{m_{k,t}c_{t}-1+\delta}{MPK_{t}}.
 \]
 
 \end_inset
@@ -573,6 +521,58 @@ d_{t}=c_{t}-w_{t}n_{t}
 \end_inset
 
 
+\end_layout
+
+\begin_layout Subsubsection
+Case 2: Not Binding
+\end_layout
+
+\begin_layout Standard
+First we know 
+\begin_inset Formula $\mu_{t}=0$
+\end_inset
+
+.
+ Labor market clearing condition yields
+\begin_inset Formula 
+\[
+\frac{\alpha c_{t}}{1-n_{t}}=(1-\theta)z_{t}k_{t}^{\theta}n_{t}^{-\theta}
+\]
+
+\end_inset
+
+Combines with the definiton of 
+\begin_inset Formula $m_{k,t}$
+\end_inset
+
+ and eliminates 
+\begin_inset Formula $c_{t}$
+\end_inset
+
+ from labor market clearing conditon we have one equation in n:
+\begin_inset Formula 
+\[
+f(n)\equiv\frac{1-\delta}{m_{k,t}}+n_{t}^{1-\theta}\left[\frac{\theta}{m_{k,t}}k_{t}^{\theta-1}z_{t}+\frac{1-\theta}{\alpha}z_{t}k_{t}^{\theta}\right]-n_{t}^{-\theta}\left[\frac{1-\theta}{\alpha}z_{t}k_{t}^{\theta}\right]=0.
+\]
+
+\end_inset
+
+Find the root with Newton's method yields the equilibirum hours.
+ It is worth noting that this function is increasing in n on (0,1] which
+ makes it easy to check existence of solution.
+\end_layout
+
+\begin_layout Standard
+From hours we can back out consumption:
+\begin_inset Formula 
+\[
+c_{t}=\frac{1-\theta}{\alpha}(1-n_{t})z_{t}k_{t}^{\theta}n_{t}^{-\theta}
+\]
+
+\end_inset
+
+and from resource constraint we obtain capital tomorrow.
+ From budget constraint of household we obtain dividend payout.
 \end_layout
 
 \begin_layout Standard

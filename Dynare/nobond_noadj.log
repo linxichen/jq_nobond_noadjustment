@@ -1,0 +1,108 @@
+Starting Dynare (version 4.4.2).
+Starting preprocessing of the model file ...
+Found 12 equation(s).
+Evaluating expressions...done
+Computing static model derivatives:
+ - order 1
+Computing dynamic model derivatives:
+ - order 1
+Processing outputs ...done
+Preprocessing completed.
+Starting MATLAB/Octave computing.
+[Warning: Some of the parameters have no value (kkappa) when using
+steady. If these parameters are not initialized in a steadystate
+file, Dynare may not be able to solve the model...] 
+[> In <a href="matlab: opentoline('/Applications/Dynare/4.4.2/matlab/test_for_deep_parameters_calibration.m',46,1)">test_for_deep_parameters_calibration at 46</a>
+  In <a href="matlab: opentoline('/Applications/Dynare/4.4.2/matlab/steady.m',33,1)">steady at 33</a>
+  In <a href="matlab: opentoline('/Users/linxichen/Dropbox/jermanquadrini/code/linxi/jq_201405231121_simple_stoch_nobond_noadj_stayclose/Dynare/nobond_noadj.m',195,1)">nobond_noadj at 195</a>
+  In <a href="matlab: opentoline('/Applications/Dynare/4.4.2/matlab/dynare.m',180,1)">dynare at 180</a>] 
+
+STEADY-STATE RESULTS:
+
+w      		 2.0372
+c      		 0.703965
+n      		 0.3
+d      		 0.0928037
+k      		 5.08645
+mmu    		 -0.14897
+y      		 0.831126
+inv    		 0.127161
+mk     		 1.48102
+yovern 		 2.77042
+z      		 1
+xxi    		 0.1634
+[Warning: Some of the parameters have no value (kkappa) when using
+stoch_simul. If these parameters are not initialized in a
+steadystate file, Dynare may not be able to solve the model...] 
+[> In <a href="matlab: opentoline('/Applications/Dynare/4.4.2/matlab/test_for_deep_parameters_calibration.m',46,1)">test_for_deep_parameters_calibration at 46</a>
+  In <a href="matlab: opentoline('/Applications/Dynare/4.4.2/matlab/stoch_simul.m',27,1)">stoch_simul at 27</a>
+  In <a href="matlab: opentoline('/Users/linxichen/Dropbox/jermanquadrini/code/linxi/jq_201405231121_simple_stoch_nobond_noadj_stayclose/Dynare/nobond_noadj.m',218,1)">nobond_noadj at 218</a>
+  In <a href="matlab: opentoline('/Applications/Dynare/4.4.2/matlab/dynare.m',180,1)">dynare at 180</a>] 
+
+MODEL SUMMARY
+
+  Number of variables:         12
+  Number of stochastic shocks: 2
+  Number of state variables:   3
+  Number of jumpers:           4
+  Number of static variables:  6
+
+
+MATRIX OF COVARIANCE OF EXOGENOUS SHOCKS
+
+Variables     epsz     epsxxi  
+epsz         1.000000  0.000000
+epsxxi       0.000000  1.000000
+
+POLICY AND TRANSITION FUNCTIONS
+                                  y               c               inv             n               w               mmu             z               d     
+Constant                    0.831126        0.703965        0.127161        0.300000        2.037204       -0.148970        1.000000        0.092804
+k(-1)                       0.139061        0.263014       -0.123953        0.045253        0.892837       -0.484628               0       -0.097027
+xxi(-1)                     4.082078        5.226393       -1.144315        2.302266       21.824924      -15.483405               0       -6.011271
+z(-1)                       0.089212       -0.456759        0.545971       -0.331576       -2.286798        2.682971        0.814700        0.904768
+epsz                        0.000460       -0.002355        0.002815       -0.001709       -0.011789        0.013831        0.004200        0.004664
+epsxxi                     -0.005722       -0.007326        0.001604       -0.003227       -0.030593        0.021704               0        0.008426
+
+
+MOMENTS OF SIMULATED VARIABLES (HP filter, lambda = 1600)
+
+VARIABLE      MEAN    STD. DEV.   VARIANCE   SKEWNESS   KURTOSIS 
+y            0.831048   0.007098   0.000050   0.013396  -0.013353
+c            0.703891   0.009451   0.000089   0.002144  -0.000988
+inv          0.127156   0.003910   0.000015   0.017733  -0.004312
+n            0.299992   0.004439   0.000020  -0.004777  -0.003652
+w            2.036969   0.039950   0.001596  -0.000144  -0.001691
+mmu         -0.148917   0.031126   0.000969   0.007851  -0.001630
+z            0.999937   0.005121   0.000026   0.013092   0.018081
+d            0.092816   0.011722   0.000137   0.005436  -0.004044
+
+
+CORRELATION OF SIMULATED VARIABLES (HP filter, lambda = 1600)
+
+VARIABLE      y       c      inv      n       w      mmu      z       d   
+y           1.0000  0.9273 -0.4263  0.8321  0.9039 -0.7936  0.1147 -0.8185
+c           0.9273  1.0000 -0.7338  0.9639  0.9963 -0.9553 -0.2540 -0.9559
+inv        -0.4263 -0.7338  1.0000 -0.8193 -0.7673  0.8685  0.8222  0.8250
+n           0.8321  0.9639 -0.8193  1.0000  0.9832 -0.9956 -0.4503 -0.9996
+w           0.9039  0.9963 -0.7673  0.9832  1.0000 -0.9759 -0.3195 -0.9777
+mmu        -0.7936 -0.9553  0.8685 -0.9956 -0.9759  1.0000  0.5133  0.9956
+z           0.1147 -0.2540  0.8222 -0.4503 -0.3195  0.5133  1.0000  0.4692
+d          -0.8185 -0.9559  0.8250 -0.9996 -0.9777  0.9956  0.4692  1.0000
+
+
+AUTOCORRELATION OF SIMULATED VARIABLES (HP filter, lambda = 1600)
+
+VARIABLE      1       2       3       4       5   
+y           0.6430  0.3651  0.1572  0.0075 -0.0995
+c           0.6227  0.3343  0.1254 -0.0200 -0.1204
+inv         0.5909  0.2874  0.0764 -0.0635 -0.1523
+n           0.6315  0.3465  0.1379 -0.0093 -0.1123
+w           0.6221  0.3332  0.1243 -0.0209 -0.1211
+mmu         0.6211  0.3311  0.1220 -0.0231 -0.1227
+z           0.6367  0.3547  0.1451 -0.0049 -0.1081
+d           0.6343  0.3503  0.1418 -0.0059 -0.1098
+
+Saving to: /Users/linxichen/Dropbox/jermanquadrini/code/linxi/jq_201405231121_simple_stoch_nobond_noadj_stayclose/Dynare/matlab.mat
+
+Total computing time : 0h00m06s
+Note: warning(s) encountered in MATLAB/Octave code

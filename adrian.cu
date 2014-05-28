@@ -28,35 +28,13 @@
 // #include <cuda_runtime.h>
 #include <cublas_v2.h>
 // #include <helper_functions.h>
+#include "cuda_helpers.h"
 
 // Includes, C++ codes
 #include "cppcode.h"
 
 using namespace std;
 using namespace thrust;
-
-// Accuracy controls
-// #define nk 256
-// #define nb 1 
-// #define nz 3
-// #define nxi 3
-// #define nm1 256 
-// #define tol 1e-10
-// #define maxiter 1
-// #define kwidth 2.0 
-// #define bwidth 1.15 
-// #define mkwidth 15.0 // has to be a double 
-
-// // Parameters from the AER paper
-// #define aalpha 1.8834
-// #define bbeta 0.9825
-// #define ddelta 0.025
-// #define ttheta 0.36
-// #define kkappa 0.1460
-// #define ttau 0.3500
-// #define xxibar 0.1634
-// #define zbar 1.0
-// #define dbar 2.56514
 
 // Define an class that contains parameters and steady states
 struct para_struct {
@@ -66,8 +44,8 @@ struct para_struct {
 	int nz ;
 	int nxxi;
 	int nm1;
-	int tol;
 	int maxiter;
+	double tol;
 	double kwidth ;
 	double bwidth ;
 	double mkwidth;
@@ -98,135 +76,105 @@ struct para_struct {
 	void complete() {
 		double kovern = pow(xxibar,1/(ttheta-1));
 		double covern = pow(kovern,ttheta) - ddelta*kovern;
-		mmuss = 1 - ( bbeta*(1-ddelta)-1+ddelta )/( xxibar*(1-bbeta*ttheta)  );
-		aalpha = (7/3)*(1/covern)*(1-mmuss)*(1-ttheta)*pow(kovern,ttheta);
+		mmuss = 1 - ( bbeta*(1-ddelta)-1+xxibar )/( xxibar*(1-bbeta*ttheta)  );
+		aalpha = double(0.7/0.3)*(1/covern)*(1-mmuss)*(1-ttheta)*pow(kovern,ttheta);
 		double G = ( (1-mmuss)*(1-ttheta)*pow(kovern,ttheta) ) / ( aalpha*covern );
 		nss = G/(1+G);
 		css = nss*covern;
 		kss = nss*kovern;
 		wss = aalpha*css/(1-nss);
 		dss = css - wss*nss;
-		mkss = (1-ddelta+(1-mmuss)*zbar*ttheta*pow(kss,ttheta-1)*pow(nss,ttheta-1))/css;
+		mkss = (1-ddelta+(1-mmuss)*zbar*ttheta*pow(kss,ttheta-1)*pow(nss,1-ttheta))/css;
 	};
 };
 
-// This function fit a valuex x to a grid X of size n
-__host__ __device__
-int fit2grid(const double x, const int n, const double* X) {
-	if (x < X[0]) {
-		return 0;
-	} else if (x > X[n-1]) {
-		return n-1;
-	} else {
-		int left=0; int right=n-1; int mid=(n-1)/2;
-		while(right-left>1) {
-			mid = (left + right)/2;
-			if (X[mid]==x) {
-				return mid;
-			} else if (X[mid]<x) {
-				left = mid;
-			} else {
-				right = mid;
-			};
+struct case1_hour {
+	// Data Member are const coefficents and some model parameters
+	double c0, c1, c_oneminusttheta, c_twominusttheta;
+	para_struct para;
 
-		};
-		return left;
-	}
-};
-
-// The objective function for case 2
-__host__ __device__
-double objective2(double z,double k,double xxi,double m1,double n,para_struct para) {
-	return 0;
-};
-
-// The  derivative for case 2
-__host__ __device__
-double derivative2(double z,double k,double xxi,double m1,double n,para_struct para) {
-	return 0;
-};
-
-// The objective function for case 1
-__host__ __device__
-double objective1(double z,double k,double xxi,double m1,double n) {
-	return 0;
-};
-
-// The  derivative for case 1
-__host__ __device__
-double derivative1(double z,double k,double xxi,double m1,double n) {
-	return 0;
-};
-
-// Define the type function ptr that takes four double and returns one doulbe
-typedef double (* func_ptr)(double, double ,double, double, double);
-
-// Apply Newton's Method to find labor hours. Some ideas are from the book "Numerical Recipes"
-__host__ __device__
-double newtonlabor(double z,double k,double xxi,double m1, func_ptr obj_func, func_ptr drv_func) {
-	double n_old = 0.3;
-	double n_new = 0.3;
-	double mytol = 0.0000001;
-	int mymaxiter = 30;
-	int found = 0; // 1 means we found the solution
-
-	int iter = 0;
-	while ( (found != 1) && (iter <= mymaxiter) ) {
-		n_new = n_old - obj_func(z,k,xxi,m1,n_old)/drv_func(z,k,xxi,m1,n_old);
-		if (n_new<0) {
-			n_new = 0.0;
-		};
-		if (n_new>1) {
-			n_new = 1.0;
-		};
-		double error = abs((n_new-n_old)/n_new);
-		if (error<mytol) {
-			found = 1;
-		} else {
-			n_old = n_new;
-		};
-
-		iter++;
+	// Construct a function of hour based on state and control variables 
+	__host__ __device__
+	case1_hour(double k, double z, double xxi, double m1, double zkttheta, para_struct _para) {
+		c0 = (1-para.ddelta)*k*m1 - 1 + para.ddelta;
+		c1 = (1-para.ddelta)*(1-k*m1+para.aalpha*para.ttheta/(1-para.ttheta));
+		c_oneminusttheta = (1-1/xxi)*m1*zkttheta;
+		c_twominusttheta = (1/xxi-1)*zkttheta*(m1+para.aalpha*para.ttheta/(k*(1-para.ttheta)));
+		para = _para;
 	};
 
-	if ((found==1) && (iter<mymaxiter)) {
-		return n_new;
-	} else {
-		return -99.99;
+	// The function of hour
+	__host__ __device__
+	double operator()(double n) {
+		return c0 + c1*n + c_oneminusttheta*pow(n,1-para.ttheta) + c_twominusttheta*pow(n,2-para.ttheta);
+	};
+
+	__host__ __device__
+	// The derivative of function
+	double prime(double n) {
+		return c1 + (1-para.ttheta)*c_oneminusttheta*pow(n,-para.ttheta) + (2-para.ttheta)*c_twominusttheta*pow(n,1-para.ttheta);
 	};
 };
 
+struct case2_hour {
+	// Data Member are const coefficents and some model parameters
+	double c0,  c_oneminusttheta, c_minusttheta;
+	para_struct para;
+
+	// Construct a function of hour based on state and control variables 
+	__host__ __device__
+	case2_hour(double k, double z, double xxi, double m1, double zkttheta, para_struct _para) {
+		double ddelta = para.ddelta;
+		double ttheta = para.ttheta;
+		double aalpha = para.aalpha;
+		c0 = (1-ddelta)/m1;
+		c_oneminusttheta = (ttheta*zkttheta/(m1*k)+(1-ttheta)*zkttheta/aalpha);
+		c_minusttheta = -(1-ttheta)*zkttheta/aalpha;
+		para = _para;
+	};
+
+	// The function of hour
+	__host__ __device__
+	double operator()(double n) {
+		return c0 + c_oneminusttheta*pow(n,1-para.ttheta) + c_minusttheta*pow(n,-para.ttheta);
+	};
+
+	__host__ __device__
+	// The derivative of function
+	double prime(double n) {
+		return c0 + (1-para.ttheta)*c_oneminusttheta*pow(n,-para.ttheta) + (-para.ttheta)*c_minusttheta*pow(n,-para.ttheta-1);
+	};
+};
 
 // Eureka function check whether a tuple (STATE,SHOCK,SHADOW) can survive to next iteration
-// now M4 is for stock price !!!!!!!
 __host__ __device__
 bool eureka(double k, double z, double xxi,
-            double m1, int i_z, int i_xi,
+            double m1, double zkttheta, int i_z, int i_xi,
             double* K, 
 			double* EM1_low, double* EM1_high, 
 			para_struct para) {
 	
 	// Declare control variables
-	double n, Y, MPK, kplus, c, mmu, w, d, lhs1;
+	double n, Y, MPK, kplus, c, mmu, w, lhs1;
 	int i_kplus;
 
-
 	// Case 1: Binding
-	n = 0.3;
-	Y = z*pow(k,para.ttheta)*pow(n,1-para.ttheta);
+	n = newton(case1_hour(k,z,xxi,m1,zkttheta,para),0.0,1.0,0.3);
+	// printf("Hour solved here is: %f\n",n);
+	Y = zkttheta*pow(n,1-para.ttheta);
 	MPK = para.ttheta*Y/k;
 	kplus = Y/xxi;
 	c = Y+(1-para.ddelta)*k-kplus;
 	mmu = 1-(m1*c-1+para.ddelta)/MPK;	
 	w = (1-mmu)*(1-para.ttheta)*Y/n;
-	d = c-w*n;
+	// d = c-w*n;
 	i_kplus = fit2grid(kplus,para.nk,K);
 	lhs1 = (1-xxi*mmu)/c;
 	
 	if (
 		(para.bbeta*EM1_low[i_kplus+para.nk*(i_z+i_xi*para.nz)] <= lhs1) &&
 		(lhs1 <=para.bbeta*EM1_high[i_kplus+para.nk*(i_z+i_xi*para.nz)]) &&
-		(c>0) && (mmu>=0) && (w>=0) //  &&  
+		(c>0) && (mmu>=0) && (w>=0) && (n>0) && (n<=1)//  &&  
 		// (kplus <= K[nk-1]) && (kplus >= K[0])
 	   )
 	{
@@ -234,21 +182,20 @@ bool eureka(double k, double z, double xxi,
 	};
 
 	// Case 2: Not Binding
-	n = 0.3;
-	Y = z*pow(k,para.ttheta)*pow(n,1-para.ttheta);
+	n = newton(case2_hour(k,z,xxi,m1,zkttheta,para),0.0,1.0,0.3);
+	Y = zkttheta*pow(n,1-para.ttheta);
 	MPK = para.ttheta*Y/k;
 	mmu = 0;
 	c = (1-para.ddelta+MPK)/m1;	
 	kplus = (1-para.ddelta)*k + Y - c;
 	w = (1-para.ttheta)*Y/n;
-	d = c - w*n;
+	// d = c - w*n;
 	lhs1 = (1-xxi*mmu)/c;
 	i_kplus = fit2grid(kplus,para.nk,K);
 	if (
 		(para.bbeta*EM1_low[i_kplus+para.nk*(i_z+i_xi*para.nz)] <= lhs1) &&
 		(lhs1 <=para.bbeta*EM1_high[i_kplus+para.nk*(i_z+i_xi*para.nz)]) &&
-		(c>0) && (w>=0) && (xxi*kplus>Y) // &&
-		// (kplus <= K[nk-1]) && (kplus >= K[0])
+		(c>0) && (w>=0) && (xxi*kplus>Y) && (n>0) && (n<=1)
 	   )
 	{
 		return true;
@@ -261,7 +208,7 @@ bool eureka(double k, double z, double xxi,
 struct RHS 
 {
 	// Data member
-	double *K, *Z, *XI;
+	double *K, *Z, *XXI;
 	double *V1_low;
 	double *V1_high;
 	double *Vplus1_low;
@@ -273,7 +220,7 @@ struct RHS
 
 	// Construct this object, create util from _util, etc.
 	__host__ __device__
-	RHS(double* K_ptr, double* Z_ptr, double* XI_ptr,
+	RHS(double* K_ptr, double* Z_ptr, double* XXI_ptr,
 	double* V1_low_ptr,
 	double* V1_high_ptr,
 	double* Vplus1_low_ptr,
@@ -283,7 +230,7 @@ struct RHS
 	double* flag_ptr,
 	para_struct _para)
 	{
-		K = K_ptr; Z = Z_ptr; XI = XI_ptr;
+		K = K_ptr; Z = Z_ptr; XXI = XXI_ptr;
 		V1_low = V1_low_ptr;
 		V1_high = V1_high_ptr;
 		Vplus1_low = Vplus1_low_ptr;
@@ -296,11 +243,11 @@ struct RHS
 
 	__host__ __device__
 	void operator()(int index) {
-		int i_xi = index/(para.nk*para.nz);
-		int i_z  = (index-i_xi*para.nk*para.nz)/(para.nk);
-		int i_k = index - i_xi*para.nk*para.nz - i_z*para.nk;
-		double k =K[i_k]; double z=Z[i_z]; double xi=XI[i_xi];
-		double Y = z*pow(k,para.ttheta); double MPK = para.ttheta*z*pow(k,para.ttheta-1);
+		int i_xxi = index/(para.nk*para.nz);
+		int i_z  = (index-i_xxi*para.nk*para.nz)/(para.nk);
+		int i_k = index - i_xxi*para.nk*para.nz - i_z*para.nk;
+		double k =K[i_k]; double z=Z[i_z]; double xxi=XXI[i_xxi];
+		double zkttheta = z*pow(k,para.ttheta); 
 
 		// Find the "box" or "hypercube" that described m's range. Fancy word.
 		double m1min = V1_low[index]; double m1max = V1_high[index];
@@ -315,7 +262,7 @@ struct RHS
 		for (int m_index = 0; m_index < para.nm1; m_index++) {
 			int i_m1 = m_index;
 			double m1=m1min+double(i_m1)*step1;
-			if (eureka(k,z,xi,m1,i_z,i_xi,K,
+			if (eureka(k,z,xxi,m1,zkttheta,i_z,i_xxi,K,
 				EM1_low,EM1_high,para))
 			{
 				tempflag++;
@@ -330,7 +277,7 @@ struct RHS
 		for (int m_index = resume_ind; m_index < para.nm1; m_index++) {
 			int i_m1 = m_index;
 			double m1=m1min+double(i_m1)*step1;
-			if (eureka(k,z,xi,m1,i_z,i_xi,K,
+			if (eureka(k,z,xxi,m1,zkttheta,i_z,i_xxi,K,
 				EM1_low,EM1_high,para))
 			{
 				tempflag++;
@@ -361,6 +308,7 @@ struct myMinus {
 		return max( abs(get<0>(t)-get<1>(t)),abs(get<2>(t)-get<3>(t)) );
 	}
 };
+
 // This functor calculates the distance 
 struct myDist {
 	// Tuple is (V1low,Vplus1low,V1high,Vplus1high,...)
@@ -372,7 +320,6 @@ struct myDist {
 	}
 };
 
-// Main
 int main()
 {
 	// Initialize Parameters
@@ -384,11 +331,11 @@ int main()
 	para.nz = 3;
 	para.nxxi = 3;
 	para.nm1 = 256 ;
-	para.tol = 1e-10;
-	para.maxiter = 1000;
-	para.kwidth = 2.0 ;
+	para.tol = 0.00001;
+	para.maxiter = 2e4;
+	para.kwidth = 1.3 ;
 	para.bwidth = 1.15 ;
-	para.mkwidth = 15.0 ; 
+	para.mkwidth = 5.0 ; 
 
 	// Set Model Parameters
 	para.bbeta = 0.9825;
@@ -396,10 +343,10 @@ int main()
 	para.ttheta = 0.36;
 	para.kkappa = 0.1460;
 	para.ttau = 0.3500;
-	para.xxibar = 0.1634;
+	para.xxibar = 0.1;
 	para.zbar = 1.0;
 
-	// "Complete" parameters by finding aalpha s.t. n=0.3
+	// "Complete" parameters by finding aalpha s.t. n=0.3. Also find all S-S
 	para.complete();
 
 	cout << setprecision(16) << "kss: " << para.kss << endl;
@@ -411,12 +358,14 @@ int main()
 	cout << setprecision(16) << "nss: " << para.nss << endl;
 	cout << setprecision(16) << "wss: " << para.wss << endl;
 	cout << setprecision(16) << "mmuss: " << para.mmuss << endl;
+	cout << setprecision(16) << "aalpha: " << para.aalpha << endl;
+	cout << setprecision(16) << "tol: " << para.tol << endl;
 
 	// Select Device
 	int num_devices;
 	cudaGetDeviceCount(&num_devices);
 	if (num_devices>1) {
-		cudaSetDevice(0);
+		cudaSetDevice(1);
 	};
 	// Only for cuBLAS
 	const double alpha = 1.0;
@@ -445,6 +394,7 @@ int main()
 	for (int i_k = 0; i_k < para.nk; i_k++) {
 		h_K[i_k] = minK + step*double(i_k);
 	};
+	save_vec(h_K,para.nk,"test.csv");
 
 	// initialize TFP shock grid
 	double minZ = 0.8*para.zbar;
@@ -610,76 +560,79 @@ int main()
 	ofstream fout_V1_low("V1_low.csv", ios::trunc); ofstream fout_V1_high("V1_high.csv", ios::trunc);
 	ofstream fout_kopt("koptcuda.csv", ios::trunc); ofstream fout_copt("coptcuda.csv", ios::trunc);
 	ofstream fout_R("Rcuda.csv", ios::trunc);
+	ofstream fout_wage("wagecuda.csv", ios::trunc);
 	ofstream fout_d("dcuda.csv", ios::trunc); ofstream fout_n("ncuda.csv", ios::trunc);
 	ofstream fout_Kgrid("Kgridcuda.csv", ios::trunc);
 	ofstream fout_Zgrid("Zgridcuda.csv", ios::trunc); ofstream fout_XIgrid("XIgridcuda.csv", ios::trunc);
 	ofstream fout_mmu("mmucuda.csv", ios::trunc); ofstream fout_P("Pcuda.csv", ios::trunc);
 	ofstream fout_flag("flagcuda.csv", ios::trunc);
 	
-	/********************************************************************************
-	for (int index=0; index<nk*nb*nz*nxi; index++) {
-		fout_V1_low << h_V1_low[index] << '\n';
-		fout_V1_high << h_V1_high[index] << '\n';
-		int i_xi = index/(nk*nb*nz);
-		int i_z  = (index-i_xi*nk*nb*nz)/(nk*nb);
-		// int i_b  = (index-i_xi*nk*nb*nz-i_z*nk*nb)/nk;
-		int i_k = index - i_xi*nk*nz - i_z*nk ;
+	double ttheta = para.ttheta;
+	double ddelta = para.ddelta;
+	double aalpha = para.aalpha;
+	int nk = para.nk;
+	int nz = para.nz;
+	int nxxi = para.nxxi;
+	for (int index=0; index<nk*nz*nxxi; index++) {
+		int i_xxi = index/(nk*nz);
+		int i_z  = (index-i_xxi*nk*nz)/(nk);
+		int i_k = index - i_xxi*nk*nz - i_z*nk ;
 		double m1 = (h_V1_low[index]+h_V1_low[index])/2;
 		double k =h_K[i_k];
-		// double b =h_B[i_b];
-		double z=h_Z[i_z]; double xxi=h_XI[i_xi];
-		double Y = z*pow(k,para.ttheta);
-		double MPK = ttheta*pow(k,ttheta-1);
+		double z=h_Z[i_z]; double xxi=h_XI[i_xxi];
+		double zkttheta = z*pow(k,ttheta);
+
+		// Declare control variables
+		double n, Y, MPK, kplus, c, mmu, w, d;
 
 		// Case 1: Binding
-		double kplus = Y/xxi;
-		double c = Y+(1-para.ddelta)*k-kplus;
-		double mmu = 1-(m1*c-1+para.ddelta)/MPK;	
-		double w = (1-mu)*(1-para.ttheta)*Y;
-		double d = c-w;
-
+		n = newton(case1_hour(k,z,xxi,m1,zkttheta,para),0.0,1.0,0.3);
+		Y = zkttheta*pow(n,1-para.ttheta);
+		MPK = para.ttheta*Y/k;
+		kplus = Y/xxi;
+		c = Y+(1-para.ddelta)*k-kplus;
+		mmu = 1-(m1*c-1+para.ddelta)/MPK;	
+		w = (1-mmu)*(1-para.ttheta)*Y/n;
+		d = c - w*n;
 	
-		if ( (mu>=0) )
+		if (mmu<0)
 		{
-			fout_kopt << kplus << '\n';
-			fout_copt << c << '\n';
-			fout_R << 1 << '\n';
-			fout_d << d << '\n';
-			fout_n << 1 << '\n';
-			fout_mmu << mmu << '\n';
-		} else {
-			mu = 0;
+			// Case 2: Not Binding
+			n = newton(case2_hour(k,z,xxi,m1,zkttheta,para),0.0,1.0,0.3);
+			Y = zkttheta*pow(n,1-para.ttheta);
+			MPK = para.ttheta*Y/k;
+			mmu = 0;
 			c = (1-para.ddelta+MPK)/m1;	
 			kplus = (1-para.ddelta)*k + Y - c;
-			w = (1-para.ttheta)*Y;
-			d = c - w;
-			fout_kopt << kplus << '\n';
-			fout_copt << c << '\n';
-			fout_R << 1 << '\n';
-			fout_d << d << '\n';
-			fout_n << 1 << '\n';
-			fout_mmu << mu << '\n';
+			w = (1-para.ttheta)*Y/n;
+			d = c - w*n;
 		};
 
-		fout_flag << h_flag[index] << '\n';
+		fout_V1_low << h_V1_low[index] << '\n';
+		fout_V1_high << h_V1_high[index] << '\n';
+
+
+		fout_kopt << kplus << '\n';
+		fout_copt << c << '\n';
+		fout_R << 1 << '\n';
+		fout_d << d << '\n';
+		fout_n << n << '\n';
+		fout_mmu << mmu << '\n';
+		fout_wage << w << '\n';
 	};
 	
 	for (int i=0; i<nk; i++) {
 		fout_Kgrid << h_K[i] << '\n';
 	};
-	// for (int i=0; i<nb; i++) {
-	// 	fout_Bgrid << h_B[i] << '\n';
-	// };
 	for (int i=0; i<nz; i++) {
 		fout_Zgrid << h_Z[i] << '\n';
 	};
-	for (int i=0; i<nxi; i++) {
+	for (int i=0; i<nxxi; i++) {
 		fout_XIgrid << h_XI[i] << '\n';
 	};
-	for (int i=0; i<nz*nxi*nz*nxi; i++) {
+	for (int i=0; i<nz*nxxi*nz*nxxi; i++) {
 		fout_P << h_P[i] << '\n';
 	};
-*******************************************************************************/
 
 	fout_V1_low.close(); fout_V1_high.close();
 	fout_Kgrid.close();
@@ -687,6 +640,7 @@ int main()
 	fout_kopt.close(); fout_copt.close();
 	fout_R.close(); fout_d.close();
 	fout_n.close(); fout_mmu.close(); fout_P.close();
+	fout_wage.close();
 	fout_flag.close();
 	return 0;
 }
