@@ -4,7 +4,31 @@
 #include <iomanip>
 #include <string>
 
-// This function fit a valuex x to a grid X of size n
+// This function converts index to subscripts like ind2sub in MATLAB
+__host__ __device__
+void ind2sub(int length_size, int* siz_vec, int index, int* subs) {
+// Purpose:		Converts index to subscripts. i -> [i_1, i_2, ..., i_n]
+//
+// Input:		length_size = # of coordinates, i.e. how many subscripts you are getting
+// 				siz_vec = vector that stores the largest coordinate value for each subscripts. Or the dimensions of matrices
+// 				index = the scalar index
+//
+// Ouput:		subs = the vector stores subscripts
+	int done = 0;
+	for (int i=length_size-1; i>=0; i--) {
+		// Computer the cumulative dimension
+		int cumdim = 1;
+		for (int j=0; j<=i-1; j++) {
+			cumdim *= siz_vec[j];
+		};
+		int temp_sub = (index - done)/cumdim;
+		subs[i] = temp_sub; 
+		done += temp_sub*cumdim;
+	};
+};
+
+// This function fit a valuex x to a grid X of size n.
+// The largest value on grid X that is smaller than x is returned ("left grid point" is returned).
 __host__ __device__
 int fit2grid(const double x, const int n, const double* X) {
 	if (x < X[0]) {
@@ -30,7 +54,6 @@ int fit2grid(const double x, const int n, const double* X) {
 
 // A function template to display vectors, C array style
 template <class T>
-__host__ __device__
 void display_vec(T vec, int size) {
 	for (int i = 0; i < size; i++) {
 		std::printf("The %ith element, @[%i] = %f\n", i+1, i, vec[i]);
@@ -39,7 +62,6 @@ void display_vec(T vec, int size) {
 
 // A function template to display vectors, std::vector style
 template <class T>
-__host__ __device__
 void display_vec(T vec) {
 	int size = vec.size();
 	for (int i = 0; i < size; i++) {

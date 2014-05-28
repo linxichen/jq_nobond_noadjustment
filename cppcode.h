@@ -1,8 +1,6 @@
-// #include <thrust/host_vector.h> // This include happens in linking stage
-#include <iostream>
-#include <iomanip>
+// This header should only contain routines that can only be compiled by
+// gcc48, for example things utilize std::random, armadillo, and LAPACK
 
-void linspace(double, double, int, double*);
 void mynormalcpp(double *, double, double, int, unsigned);
 void myuniformcpp(double *, int, unsigned);
 void myexponentialcpp(double *, int, unsigned);
@@ -11,6 +9,8 @@ void fromchebydomain(double, double, int, double*);
 void ind2sub(int, int*, int, int*);
 void findprojector(double*, int, int, double*);
 
+void linspace(double, double, int, double*);
+void chebyspace(double, double, int, double*);
 typedef void (*gridgen_fptr)(double, double, int, double*);
 void tauchen_vec(int, int, int, double*, double*, double*, double*, gridgen_fptr);
 

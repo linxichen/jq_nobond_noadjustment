@@ -330,10 +330,6 @@ struct myDist {
 
 int main()
 {
-	// Testing ground
-	double test[10];
-	linspace(0,1,10,test);
-	display_vec(test,10);
 
 	// Initialize Parameters
 	para_struct para;
@@ -345,7 +341,7 @@ int main()
 	para.nxxi = 11;
 	para.nm1 = 256 ;
 	para.tol = 0.00001;
-	para.maxiter = 1;
+	para.maxiter = 1e6;
 	para.kwidth = 1.3 ;
 	para.bwidth = 1.15 ;
 	para.mkwidth = 5.0 ; 
@@ -369,6 +365,14 @@ int main()
 
 	// "Complete" parameters by finding aalpha s.t. n=0.3. Also find all S-S
 	para.complete();
+
+	// Testing ground
+	int subs[3]; int siz_vec[3];
+	siz_vec[0] = para.nk;
+	siz_vec[1] = para.nz;
+	siz_vec[2] = para.nxxi;
+	ind2sub(3,siz_vec,123,subs);
+	printf("Subscripts are %i, %i, and %i", subs[0],subs[1],subs[2]);
 
 	cout << setprecision(16) << "kss: " << para.kss << endl;
 	cout << setprecision(16) << "zss: " << para.zbar << endl;
@@ -421,12 +425,14 @@ int main()
 	host_vector<double> h_shockgrids(2*para.nz);
 	double* h_shockgrids_ptr = raw_pointer_cast(h_shockgrids.data());
 	double* h_P_ptr = raw_pointer_cast(h_P.data());
-	gridgen_fptr linspace_fptr = &linspace; // select linspace as grid gen
-	tauchen_vec(2,para.nz,4,para.A,para.Ssigma_e,h_shockgrids_ptr,h_P_ptr,linspace_fptr);
+	gridgen_fptr chebyspace_fptr = &chebyspace; // select linspace as grid gen
+	tauchen_vec(2,para.nz,4,para.A,para.Ssigma_e,h_shockgrids_ptr,h_P_ptr,chebyspace_fptr);
 	for (int i_shock = 0; i_shock < para.nz; i_shock++) {
-		h_Z[i_shock] = h_shockgrids[i_shock+0*para.nz];
-		h_XXI[i_shock] = h_shockgrids[i_shock+1*para.nz];
+		h_Z[i_shock] = para.zbar*exp(h_shockgrids[i_shock+0*para.nz]);
+		h_XXI[i_shock] = para.xxibar*exp(h_shockgrids[i_shock+1*para.nz]);
 	};
+	display_vec(h_Z);
+	display_vec(h_XXI);
 
 	// Copy to the device
 	device_vector<double> d_K = h_K;
