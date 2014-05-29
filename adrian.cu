@@ -8,6 +8,7 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+#include <string>
 
 // Includes, Thrust
 #include <thrust/functional.h>
@@ -82,6 +83,13 @@ struct para_struct {
 	// Find steady state and find aalpha based steady state target
 	__host__ __device__
 	void complete() {
+		// Fill A and Ssigma_e
+		A[0] = rrhozz; A[2] = rrhozxxi;
+		A[1] = rrhoxxiz; A[3] = rrhoxxixxi;
+		Ssigma_e[0] = var_epsz*var_epsz;
+		Ssigma_e[3] = var_epsxxi*var_epsxxi;
+
+		// Find aalpha based on SS computation
 		double kovern = pow(xxibar,1/(ttheta-1));
 		double covern = pow(kovern,ttheta) - ddelta*kovern;
 		mmuss = 1 - ( bbeta*(1-ddelta)-1+xxibar )/( xxibar*(1-bbeta*ttheta)  );
@@ -93,6 +101,42 @@ struct para_struct {
 		wss = aalpha*css/(1-nss);
 		dss = css - wss*nss;
 		mkss = (1-ddelta+(1-mmuss)*zbar*ttheta*pow(kss,ttheta-1)*pow(nss,1-ttheta))/css;
+	};
+
+	// Export parameters to a .m file in MATLAB syntax
+	__host__
+	void exportmatlab(std::string filename) {
+		std::ofstream fileout(filename.c_str(), std::ofstream::trunc);
+		// Accuracy Controls
+		fileout << setprecision(16) << "nk=" << nk << ";"<< endl;
+		fileout << setprecision(16) << "nb=" << nb << ";"<< endl;
+		fileout << setprecision(16) << "nz=" << nz << ";"<< endl;
+		fileout << setprecision(16) << "nxxi=" << nxxi << ";"<< endl;
+		fileout << setprecision(16) << "nm1=" << nm1 << ";"<< endl;
+
+		// Model Parameters
+		fileout << setprecision(16) << "aalpha=" << aalpha << ";"<< endl;
+		fileout << setprecision(16) << "bbeta=" << bbeta << ";"<< endl;
+		fileout << setprecision(16) << "ddelta=" << ddelta << ";"<< endl;
+		fileout << setprecision(16) << "ttheta=" << ttheta << ";"<< endl;
+		fileout << setprecision(16) << "xxibar=" << xxibar << ";"<< endl;
+		fileout << setprecision(16) << "zbar=" << zbar << ";"<< endl;
+		fileout << setprecision(16) << "rrhozz=" << rrhozz << ";"<< endl;
+		fileout << setprecision(16) << "rrhozxxi=" << rrhozxxi << ";"<< endl;
+		fileout << setprecision(16) << "rrhoxxiz=" << rrhoxxiz << ";"<< endl;
+		fileout << setprecision(16) << "rrhoxxixxi=" << rrhoxxixxi << ";"<< endl;
+		fileout << setprecision(16) << "var_epsz=" << var_epsz << ";"<< endl;
+		fileout << setprecision(16) << "var_epsxxi=" << var_epsxxi << ";"<< endl;
+
+		// Steady States
+		fileout << setprecision(16) << "kss=" << kss << ";"<< endl;
+		fileout << setprecision(16) << "nss=" << nss << ";"<< endl;
+		fileout << setprecision(16) << "css=" << css << ";"<< endl;
+		fileout << setprecision(16) << "wss=" << wss << ";"<< endl;
+		fileout << setprecision(16) << "dss=" << dss << ";"<< endl;
+		fileout << setprecision(16) << "mmuss=" << mmuss << ";"<< endl;
+		fileout << setprecision(16) << "mkss=" << mkss << ";"<< endl;
+		fileout.close();
 	};
 };
 
@@ -251,9 +295,15 @@ struct RHS
 
 	__host__ __device__
 	void operator()(int index) {
-		int i_xxi = index/(para.nk*para.nz);
-		int i_z  = (index-i_xxi*para.nk*para.nz)/(para.nk);
-		int i_k = index - i_xxi*para.nk*para.nz - i_z*para.nk;
+		int subs[3];
+		int size_vec[3];
+		size_vec[0] = para.nk;
+		size_vec[1] = para.nz;
+		size_vec[2] = para.nxxi;
+		ind2sub(3,size_vec,index,subs);
+		int i_k = subs[0];
+		int i_z = subs[1];
+		int i_xxi = subs[2];
 		double k =K[i_k]; double z=Z[i_z]; double xxi=XXI[i_xxi];
 		double zkttheta = z*pow(k,para.ttheta); 
 
@@ -341,10 +391,10 @@ int main()
 	para.nxxi = 11;
 	para.nm1 = 256 ;
 	para.tol = 0.00001;
-	para.maxiter = 1e6;
+	para.maxiter = 1e5;
 	para.kwidth = 1.3 ;
 	para.bwidth = 1.15 ;
-	para.mkwidth = 5.0 ; 
+	para.mkwidth = 15.0 ; 
 
 	// Set Model Parameters
 	para.bbeta = 0.9825;
@@ -354,24 +404,22 @@ int main()
 	para.ttau = 0.3500;
 	para.xxibar = 0.1;
 	para.zbar = 1.0;
-	para.A[0] = 0.9457;
-	para.A[1] = 0.0321;
-	para.A[2] =-0.0091;
-	para.A[3] = 0.9703;
-	para.Ssigma_e[0] = 0.0045*0.0045;
-	para.Ssigma_e[1] = 0.0;
-	para.Ssigma_e[2] = 0.0;
-	para.Ssigma_e[3] = 0.0098*0.0098;
+	para.rrhozz = 0.9457;
+	para.rrhoxxiz = 0.0321;
+	para.rrhozxxi =-0.0091;
+	para.rrhoxxixxi = 0.9703;
+	para.var_epsz = 0.0045*0.0045;
+	para.var_epsxxi = 0.0098*0.0098;
 
 	// "Complete" parameters by finding aalpha s.t. n=0.3. Also find all S-S
 	para.complete();
 
 	// Testing ground
-	int subs[3]; int siz_vec[3];
+	int subs [3]; int siz_vec [3];
 	siz_vec[0] = para.nk;
 	siz_vec[1] = para.nz;
 	siz_vec[2] = para.nxxi;
-	ind2sub(3,siz_vec,123,subs);
+	ind2sub(3,siz_vec,9999,subs);
 	printf("Subscripts are %i, %i, and %i", subs[0],subs[1],subs[2]);
 
 	cout << setprecision(16) << "kss: " << para.kss << endl;
@@ -409,7 +457,7 @@ int main()
 	host_vector<double> h_EM1_low(para.nk*para.nz*para.nxxi,0.0);
 	host_vector<double> h_EM1_high(para.nk*para.nz*para.nxxi,0.0);
 
-	host_vector<double> h_P(para.nz*para.nxxi*para.nz*para.nxxi, 1.0/double(para.nz*para.nxxi)); // No Tauchen yet
+	host_vector<double> h_P(para.nz*para.nxxi*para.nz*para.nxxi, 1.0/double(para.nz*para.nxxi));
 	host_vector<double> h_flag(para.nk*para.nz*para.nxxi, 0); 
 	
 	// Create capital grid
@@ -419,7 +467,7 @@ int main()
 	for (int i_k = 0; i_k < para.nk; i_k++) {
 		h_K[i_k] = minK + step*double(i_k);
 	};
-	save_vec(h_K,para.nk,"test.csv");
+	save_vec(h_K,para.nk,"Kgrid.csv");
 
 	// Create shocks grids
 	host_vector<double> h_shockgrids(2*para.nz);
@@ -662,6 +710,9 @@ int main()
 	fout_n.close(); fout_mmu.close(); fout_P.close();
 	fout_wage.close();
 	fout_flag.close();
+
+	// Export parameters to MATLAB
+	para.exportmatlab("./MATLAB/parameters.m");
 	return 0;
 }
 
