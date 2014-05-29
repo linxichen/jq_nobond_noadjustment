@@ -28,7 +28,7 @@ ncuda = csvread('../ncuda.csv');
 mmucuda = csvread('../mmucuda.csv');
 wagecuda = csvread('../wagecuda.csv');
 
-% flagcuda = csvread('../flagcuda.csv');
+flagcuda = csvread('../flagcuda.csv');
 % EEerrorcuda = csvread('EEerror.csv');
 
 %% Reshape
@@ -45,10 +45,19 @@ mmucuda = reshape(mmucuda,[nk,nz,nxi]);
 
 P = reshape(P,[nz*nxi nz*nxi]);
 
-% flagcuda = reshape(flagcuda,[nk,nz,nxi]);
+flagcuda = reshape(flagcuda,[nk,nz,nxi]);
 
 %% Find the gap between high and low
-plot3
+dist_K = MK_high - MK_low;
+figure
+surf(Zgrid,Kgrid(end-20:end),squeeze(dist_K(end-20:end,:,ceil(nxi/2))),'EdgeColor','none','LineStyle','none','FaceLighting','phong')
+xlabel('TFP Shock'); ylabel('Capital'); zlabel('Dist of Shadow Val Investment')
+
+dist_K = MK_high - MK_low;
+figure
+surf(Zgrid,Kgrid(end-20:end),squeeze(flagcuda(end-20:end,:,ceil(nxi/2))),'EdgeColor','none','LineStyle','none','FaceLighting','phong')
+xlabel('TFP Shock'); ylabel('Capital'); zlabel('Flags')
+
 
 %%
 % Linxi: Paint Kopt for i_z=5, i_xxi=5
@@ -99,9 +108,10 @@ dcuda_occa = dcuda;
 ncuda_occa = ncuda;
 mmucuda_occa = mmucuda;
 
-save('occasionally.mat','*_occa')
+figure
+surf(Zgrid,Kgrid,squeeze(dist_K(:,:,ceil(nxi/2))),'EdgeColor','none','LineStyle','none','FaceLighting','phong')
+xlabel('TFP Shock'); ylabel('Capital'); zlabel('Dist of Shadow Val Investment')
 
-print -f -depsc2 '2dpolicies.eps'
 
 %%
 % Shrinkage

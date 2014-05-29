@@ -347,8 +347,8 @@ struct RHS
 		// Update Vs
 		flag[index] = double(tempflag)/double(para.nm1);
 		if (tempflag == 0) {
-			Vplus1_high[index] = 1*(m1max+0.0*step1);
-			Vplus1_low[index] = 1*(m1min-0.0*step1);
+			Vplus1_high[index] = m1max*1.01;
+			Vplus1_low[index] = m1min*0.99; 
 		} else {
 			Vplus1_high[index] = m1min+i_m1_max*step1;
 			Vplus1_low[index] = m1min+i_m1_min*step1;
@@ -387,14 +387,14 @@ int main()
 	// Set Accuracy Parameters
 	para.nk = 256;
 	para.nb = 1 ;
-	para.nz = 11;
-	para.nxxi = 11;
-	para.nm1 = 256 ;
-	para.tol = 0.00001;
+	para.nz = 7;
+	para.nxxi = 7;
+	para.nm1 = 128 ;
+	para.tol = 1e-5;
 	para.maxiter = 1e5;
-	para.kwidth = 1.3 ;
+	para.kwidth = 1.2 ;
 	para.bwidth = 1.15 ;
-	para.mkwidth = 15.0 ; 
+	para.mkwidth = 3.0 ; 
 
 	// Set Model Parameters
 	para.bbeta = 0.9825;
@@ -410,17 +410,7 @@ int main()
 	para.rrhoxxixxi = 0.9703;
 	para.var_epsz = 0.0045*0.0045;
 	para.var_epsxxi = 0.0098*0.0098;
-
-	// "Complete" parameters by finding aalpha s.t. n=0.3. Also find all S-S
-	para.complete();
-
-	// Testing ground
-	int subs [3]; int siz_vec [3];
-	siz_vec[0] = para.nk;
-	siz_vec[1] = para.nz;
-	siz_vec[2] = para.nxxi;
-	ind2sub(3,siz_vec,9999,subs);
-	printf("Subscripts are %i, %i, and %i", subs[0],subs[1],subs[2]);
+	para.complete(); // complete all implied para, find S-S
 
 	cout << setprecision(16) << "kss: " << para.kss << endl;
 	cout << setprecision(16) << "zss: " << para.zbar << endl;
@@ -498,7 +488,6 @@ int main()
 
 	device_vector<double> d_P = h_P;
 	device_vector<double> d_flag = h_flag;
-	// device_vector<double> d_keys_out(nk*nz);
 
 	// Obtain device pointers to be used by cuBLAS
 	double* d_K_ptr = raw_pointer_cast(d_K.data());
@@ -626,8 +615,10 @@ int main()
 	// Copy back to host and print to file
 	h_V1_low = d_V1_low; h_V1_high = d_V1_high;
 	h_flag = d_flag;
+	save_vec(h_V1_low,"V1_low.csv");
+	save_vec(h_V1_high,"V1_high.csv");
+	save_vec(h_flag,"flagcuda.csv");
 	
-	ofstream fout_V1_low("V1_low.csv", ios::trunc); ofstream fout_V1_high("V1_high.csv", ios::trunc);
 	ofstream fout_kopt("koptcuda.csv", ios::trunc); ofstream fout_copt("coptcuda.csv", ios::trunc);
 	ofstream fout_R("Rcuda.csv", ios::trunc);
 	ofstream fout_wage("wagecuda.csv", ios::trunc);
@@ -635,7 +626,6 @@ int main()
 	ofstream fout_Kgrid("Kgridcuda.csv", ios::trunc);
 	ofstream fout_Zgrid("Zgridcuda.csv", ios::trunc); ofstream fout_XXIgrid("XXIgridcuda.csv", ios::trunc);
 	ofstream fout_mmu("mmucuda.csv", ios::trunc); ofstream fout_P("Pcuda.csv", ios::trunc);
-	ofstream fout_flag("flagcuda.csv", ios::trunc);
 	
 	double ttheta = para.ttheta;
 	int nk = para.nk;
@@ -676,10 +666,6 @@ int main()
 			d = c - w*n;
 		};
 
-		fout_V1_low << h_V1_low[index] << '\n';
-		fout_V1_high << h_V1_high[index] << '\n';
-
-
 		fout_kopt << kplus << '\n';
 		fout_copt << c << '\n';
 		fout_R << 1 << '\n';
@@ -702,14 +688,12 @@ int main()
 		fout_P << h_P[i] << '\n';
 	};
 
-	fout_V1_low.close(); fout_V1_high.close();
 	fout_Kgrid.close();
 	fout_Zgrid.close(); fout_XXIgrid.close();
 	fout_kopt.close(); fout_copt.close();
 	fout_R.close(); fout_d.close();
 	fout_n.close(); fout_mmu.close(); fout_P.close();
 	fout_wage.close();
-	fout_flag.close();
 
 	// Export parameters to MATLAB
 	para.exportmatlab("./MATLAB/parameters.m");
