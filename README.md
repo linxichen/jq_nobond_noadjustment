@@ -21,5 +21,9 @@ This is a project that tries to solve a variant of Jermann Quadrini (2012 AER) w
 
 ## To-do List
 + Study why no shrinking, multiple equilibria or what?
+	+ Rewrite eureka using objects
+	+ Could it be that the grid points are too sparse?
+	+ 
++ Write eureka in terms of objects. Takes in an object of augmented state and some auxillary things, spits out an object of control variables, given an parameter object.
 + Try how to call QZ from LAPACK
 + Compare speed of function pointer v.s. functor approach in finding Newton' method

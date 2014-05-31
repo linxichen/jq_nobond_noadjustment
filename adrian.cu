@@ -209,6 +209,7 @@ bool eureka(double k, double z, double xxi,
 	// Declare control variables
 	double n, Y, MPK, kplus, c, mmu, w, lhs1;
 	int i_kplus;
+	double interp_low, interp_high;
 
 	// Case 1: Binding
 	n = newton(case1_hour(k,z,xxi,m1,zkttheta,para),0.0,1.0,0.3);
@@ -222,10 +223,12 @@ bool eureka(double k, double z, double xxi,
 	// d = c-w*n;
 	i_kplus = fit2grid(kplus,para.nk,K);
 	lhs1 = (1-xxi*mmu)/c;
+	interp_low = EM1_low[i_kplus+1+para.nk*(i_z+i_xi*para.nz)] + (kplus-K[i_kplus])*(EM1_low[i_kplus+1+para.nk*(i_z+i_xi*para.nz)]-EM1_low[i_kplus+1+para.nk*(i_z+i_xi*para.nz)])/(K[i_kplus+1]-K[i_kplus]);
+	interp_high = EM1_high[i_kplus+1+para.nk*(i_z+i_xi*para.nz)] + (kplus-K[i_kplus])*(EM1_high[i_kplus+1+para.nk*(i_z+i_xi*para.nz)]-EM1_high[i_kplus+1+para.nk*(i_z+i_xi*para.nz)])/(K[i_kplus+1]-K[i_kplus]);
 	
 	if (
-		(para.bbeta*EM1_low[i_kplus+para.nk*(i_z+i_xi*para.nz)] <= lhs1) &&
-		(lhs1 <=para.bbeta*EM1_high[i_kplus+para.nk*(i_z+i_xi*para.nz)]) &&
+		(para.bbeta*interp_low <= lhs1) &&
+		(lhs1 <=para.bbeta*interp_high) &&
 		(c>0) && (mmu>=0) && (w>=0) && (n>0) && (n<=1)//  &&  
 		// (kplus <= K[nk-1]) && (kplus >= K[0])
 	   )
@@ -244,9 +247,11 @@ bool eureka(double k, double z, double xxi,
 	// d = c - w*n;
 	lhs1 = (1-xxi*mmu)/c;
 	i_kplus = fit2grid(kplus,para.nk,K);
+	interp_low = EM1_low[i_kplus+1+para.nk*(i_z+i_xi*para.nz)] + (kplus-K[i_kplus])*(EM1_low[i_kplus+1+para.nk*(i_z+i_xi*para.nz)]-EM1_low[i_kplus+1+para.nk*(i_z+i_xi*para.nz)])/(K[i_kplus+1]-K[i_kplus]);
+	interp_high = EM1_high[i_kplus+1+para.nk*(i_z+i_xi*para.nz)] + (kplus-K[i_kplus])*(EM1_high[i_kplus+1+para.nk*(i_z+i_xi*para.nz)]-EM1_high[i_kplus+1+para.nk*(i_z+i_xi*para.nz)])/(K[i_kplus+1]-K[i_kplus]);
 	if (
-		(para.bbeta*EM1_low[i_kplus+para.nk*(i_z+i_xi*para.nz)] <= lhs1) &&
-		(lhs1 <=para.bbeta*EM1_high[i_kplus+para.nk*(i_z+i_xi*para.nz)]) &&
+		(para.bbeta*interp_low <= lhs1) &&
+		(lhs1 <=para.bbeta*interp_high) &&
 		(c>0) && (w>=0) && (xxi*kplus>Y) && (n>0) && (n<=1)
 	   )
 	{
@@ -257,7 +262,7 @@ bool eureka(double k, double z, double xxi,
 };
 
 // This functor yields RHS for each (k', k, z). Follwing examples in Thrust doc
-struct RHS 
+struct shrink 
 {
 	// Data member
 	double *K, *Z, *XXI;
@@ -272,7 +277,7 @@ struct RHS
 
 	// Construct this object, create util from _util, etc.
 	__host__ __device__
-	RHS(double* K_ptr, double* Z_ptr, double* XXI_ptr,
+	shrink(double* K_ptr, double* Z_ptr, double* XXI_ptr,
 	double* V1_low_ptr,
 	double* V1_high_ptr,
 	double* Vplus1_low_ptr,
@@ -312,11 +317,7 @@ struct RHS
 		double step1 = (m1max-m1min)/double(para.nm1-1);
 		double tempflag = 0.0;
 
-		// Brute force searching
-		int i_m1_min=0;
-		int i_m1_max=para.nm1-1;
-		int resume_ind=0; //
-		// Initial search to have something to compare later
+		// Initial search to find the min m
 		for (int m_index = 0; m_index < para.nm1; m_index++) {
 			int i_m1 = m_index;
 			double m1=m1min+double(i_m1)*step1;
@@ -324,34 +325,60 @@ struct RHS
 				EM1_low,EM1_high,para))
 			{
 				tempflag++;
-				i_m1_max = i_m1;
-				i_m1_min = i_m1;
-				resume_ind = m_index + 1;
+				m1min = m1;
 				break; // break and only break one layer of for loop
 			};
 		};
 
-		// Update min and max, run to the end
-		for (int m_index = resume_ind; m_index < para.nm1; m_index++) {
+		// "Trace-back" to refine the min_m1, assuming we found at least one m !!!
+		double min_step = step1/(para.nm1-1);
+		double m1min_left = m1min - step1; 
+		for (int i_m1min = 0; i_m1min < para.nm1; i_m1min++) {
+			double m1 = m1min_left + i_m1min*min_step;
+			if (eureka(k,z,xxi,m1,zkttheta,i_z,i_xxi,K,
+				EM1_low,EM1_high,para))
+			{
+				tempflag++;
+				m1min = m1;
+				break; // break and only break one layer of for loop
+			};
+		};
+
+		// Initial search to find the min m
+		for (int m_index = para.nm1-1; m_index >= 0; m_index--) {
 			int i_m1 = m_index;
 			double m1=m1min+double(i_m1)*step1;
 			if (eureka(k,z,xxi,m1,zkttheta,i_z,i_xxi,K,
 				EM1_low,EM1_high,para))
 			{
 				tempflag++;
-				if (i_m1 > i_m1_max) i_m1_max = i_m1;
-				if (i_m1 < i_m1_min) i_m1_min = i_m1;
+				m1max = m1;
+				break; // break and only break one layer of for loop
+			};
+		};
+
+		// "Trace-back" to refine the max_m1, assuming we found at least one m !!!
+		double max_step = step1/(para.nm1-1);
+		double m1max_right = m1max + step1; 
+		for (int i_m1max = 0; i_m1max < para.nm1; i_m1max++) {
+			double m1 = m1max_right - i_m1max*max_step;
+			if (eureka(k,z,xxi,m1,zkttheta,i_z,i_xxi,K,
+				EM1_low,EM1_high,para))
+			{
+				tempflag++;
+				m1max = m1;
+				break; // break and only break one layer of for loop
 			};
 		};
 
 		// Update Vs
 		flag[index] = double(tempflag)/double(para.nm1);
 		if (tempflag == 0) {
-			Vplus1_high[index] = m1max*1.01;
-			Vplus1_low[index] = m1min*0.99; 
+			Vplus1_high[index] = -51709394;
+			Vplus1_low[index] = -51709394; 
 		} else {
-			Vplus1_high[index] = m1min+i_m1_max*step1;
-			Vplus1_low[index] = m1min+i_m1_min*step1;
+			Vplus1_high[index] = m1max;
+			Vplus1_low[index] = m1min;
 		};
 	}
 };	
@@ -385,14 +412,14 @@ int main()
 	para_struct para;
 
 	// Set Accuracy Parameters
-	para.nk = 256;
+	para.nk = 128;
 	para.nb = 1 ;
 	para.nz = 7;
 	para.nxxi = 7;
-	para.nm1 = 128 ;
+	para.nm1 = 2560 ;
 	para.tol = 1e-5;
 	para.maxiter = 1e5;
-	para.kwidth = 1.2 ;
+	para.kwidth = 2.0 ;
 	para.bwidth = 1.15 ;
 	para.mkwidth = 3.0 ; 
 
@@ -555,7 +582,7 @@ int main()
 		thrust::for_each(
 			begin,
 			end,
-			RHS(d_K_ptr, d_Z_ptr, d_XXI_ptr,
+			shrink(d_K_ptr, d_Z_ptr, d_XXI_ptr,
 				d_V1_low_ptr,
 				d_V1_high_ptr,
 				d_Vplus1_low_ptr,
