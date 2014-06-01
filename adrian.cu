@@ -223,14 +223,15 @@ bool eureka(double k, double z, double xxi,
 	// d = c-w*n;
 	i_kplus = fit2grid(kplus,para.nk,K);
 	lhs1 = (1-xxi*mmu)/c;
-	interp_low = EM1_low[i_kplus+1+para.nk*(i_z+i_xi*para.nz)] + (kplus-K[i_kplus])*(EM1_low[i_kplus+1+para.nk*(i_z+i_xi*para.nz)]-EM1_low[i_kplus+1+para.nk*(i_z+i_xi*para.nz)])/(K[i_kplus+1]-K[i_kplus]);
-	interp_high = EM1_high[i_kplus+1+para.nk*(i_z+i_xi*para.nz)] + (kplus-K[i_kplus])*(EM1_high[i_kplus+1+para.nk*(i_z+i_xi*para.nz)]-EM1_high[i_kplus+1+para.nk*(i_z+i_xi*para.nz)])/(K[i_kplus+1]-K[i_kplus]);
+	// interp_low = EM1_low[i_kplus+para.nk*(i_z+i_xi*para.nz)] + (kplus-K[i_kplus])*(EM1_low[i_kplus+1+para.nk*(i_z+i_xi*para.nz)]-EM1_low[i_kplus+para.nk*(i_z+i_xi*para.nz)])/(K[i_kplus+1]-K[i_kplus]);
+	// interp_high = EM1_high[i_kplus+para.nk*(i_z+i_xi*para.nz)] + (kplus-K[i_kplus])*(EM1_high[i_kplus+1+para.nk*(i_z+i_xi*para.nz)]-EM1_high[i_kplus+para.nk*(i_z+i_xi*para.nz)])/(K[i_kplus+1]-K[i_kplus]);
+	interp_low = EM1_low[i_kplus+i_z*para.nk+i_xi*para.nz*para.nk];
+	interp_high = EM1_high[i_kplus+i_z*para.nk+i_xi*para.nz*para.nk];
 	
 	if (
 		(para.bbeta*interp_low <= lhs1) &&
 		(lhs1 <=para.bbeta*interp_high) &&
-		(c>0) && (mmu>=0) && (w>=0) && (n>0) && (n<=1)//  &&  
-		// (kplus <= K[nk-1]) && (kplus >= K[0])
+		(c>0) && (mmu>=0) && (w>=0) && (n>0) && (n<1)//  &&  
 	   )
 	{
 		return true;
@@ -244,15 +245,16 @@ bool eureka(double k, double z, double xxi,
 	c = (1-para.ddelta+MPK)/m1;	
 	kplus = (1-para.ddelta)*k + Y - c;
 	w = (1-para.ttheta)*Y/n;
-	// d = c - w*n;
 	lhs1 = (1-xxi*mmu)/c;
 	i_kplus = fit2grid(kplus,para.nk,K);
-	interp_low = EM1_low[i_kplus+1+para.nk*(i_z+i_xi*para.nz)] + (kplus-K[i_kplus])*(EM1_low[i_kplus+1+para.nk*(i_z+i_xi*para.nz)]-EM1_low[i_kplus+1+para.nk*(i_z+i_xi*para.nz)])/(K[i_kplus+1]-K[i_kplus]);
-	interp_high = EM1_high[i_kplus+1+para.nk*(i_z+i_xi*para.nz)] + (kplus-K[i_kplus])*(EM1_high[i_kplus+1+para.nk*(i_z+i_xi*para.nz)]-EM1_high[i_kplus+1+para.nk*(i_z+i_xi*para.nz)])/(K[i_kplus+1]-K[i_kplus]);
+	// interp_low = EM1_low[i_kplus+para.nk*(i_z+i_xi*para.nz)] + (kplus-K[i_kplus])*(EM1_low[i_kplus+1+para.nk*(i_z+i_xi*para.nz)]-EM1_low[i_kplus+para.nk*(i_z+i_xi*para.nz)])/(K[i_kplus+1]-K[i_kplus]);
+	// interp_high = EM1_high[i_kplus+para.nk*(i_z+i_xi*para.nz)] + (kplus-K[i_kplus])*(EM1_high[i_kplus+1+para.nk*(i_z+i_xi*para.nz)]-EM1_high[i_kplus+para.nk*(i_z+i_xi*para.nz)])/(K[i_kplus+1]-K[i_kplus]);
+	interp_low = EM1_low[i_kplus+i_z*para.nk+i_xi*para.nz*para.nk];
+	interp_high = EM1_high[i_kplus+i_z*para.nk+i_xi*para.nz*para.nk];
 	if (
 		(para.bbeta*interp_low <= lhs1) &&
 		(lhs1 <=para.bbeta*interp_high) &&
-		(c>0) && (w>=0) && (xxi*kplus>Y) && (n>0) && (n<=1)
+		(c>0) && (w>=0) && (xxi*kplus>Y) && (n>0) && (n<1)
 	   )
 	{
 		return true;
@@ -316,63 +318,64 @@ struct shrink
 		double m1min = V1_low[index]; double m1max = V1_high[index];
 		double step1 = (m1max-m1min)/double(para.nm1-1);
 		double tempflag = 0.0;
+		int nm1 = para.nm1;
 
 		// Initial search to find the min m
-		for (int m_index = 0; m_index < para.nm1; m_index++) {
+		for (int m_index = 0; m_index < nm1; m_index++) {
 			int i_m1 = m_index;
 			double m1=m1min+double(i_m1)*step1;
 			if (eureka(k,z,xxi,m1,zkttheta,i_z,i_xxi,K,
 				EM1_low,EM1_high,para))
 			{
 				tempflag++;
-				m1min = m1;
+				m1min = m1-step1;
 				break; // break and only break one layer of for loop
 			};
 		};
 
-		// "Trace-back" to refine the min_m1, assuming we found at least one m !!!
-		double min_step = step1/(para.nm1-1);
-		double m1min_left = m1min - step1; 
-		for (int i_m1min = 0; i_m1min < para.nm1; i_m1min++) {
-			double m1 = m1min_left + i_m1min*min_step;
-			if (eureka(k,z,xxi,m1,zkttheta,i_z,i_xxi,K,
-				EM1_low,EM1_high,para))
-			{
-				tempflag++;
-				m1min = m1;
-				break; // break and only break one layer of for loop
-			};
-		};
+		// // "Trace-back" to refine the min_m1, assuming we found at least one m !!!
+		// double min_step = step1/(nm1-1);
+		// double m1min_left = m1min - step1; 
+		// for (int i_m1min = 0; i_m1min < nm1; i_m1min++) {
+		// 	double m1 = m1min_left + i_m1min*min_step;
+		// 	if (eureka(k,z,xxi,m1,zkttheta,i_z,i_xxi,K,
+		// 		EM1_low,EM1_high,para))
+		// 	{
+		// 		tempflag++;
+		// 		m1min = m1;
+		// 		break; // break and only break one layer of for loop
+		// 	};
+		// };
 
-		// Initial search to find the min m
-		for (int m_index = para.nm1-1; m_index >= 0; m_index--) {
+		// Initial search to find the max m
+		for (int m_index = nm1-1; m_index >= 0; m_index--) {
 			int i_m1 = m_index;
 			double m1=m1min+double(i_m1)*step1;
 			if (eureka(k,z,xxi,m1,zkttheta,i_z,i_xxi,K,
 				EM1_low,EM1_high,para))
 			{
 				tempflag++;
-				m1max = m1;
+				m1max = m1+step1;
 				break; // break and only break one layer of for loop
 			};
 		};
 
-		// "Trace-back" to refine the max_m1, assuming we found at least one m !!!
-		double max_step = step1/(para.nm1-1);
-		double m1max_right = m1max + step1; 
-		for (int i_m1max = 0; i_m1max < para.nm1; i_m1max++) {
-			double m1 = m1max_right - i_m1max*max_step;
-			if (eureka(k,z,xxi,m1,zkttheta,i_z,i_xxi,K,
-				EM1_low,EM1_high,para))
-			{
-				tempflag++;
-				m1max = m1;
-				break; // break and only break one layer of for loop
-			};
-		};
+		// // "Trace-back" to refine the max_m1, assuming we found at least one m !!!
+		// double max_step = step1/(nm1-1);
+		// double m1max_right = m1max + step1; 
+		// for (int i_m1max = 0; i_m1max < nm1; i_m1max++) {
+		// 	double m1 = m1max_right - i_m1max*max_step;
+		// 	if (eureka(k,z,xxi,m1,zkttheta,i_z,i_xxi,K,
+		// 		EM1_low,EM1_high,para))
+		// 	{
+		// 		tempflag++;
+		// 		m1max = m1;
+		// 		break; // break and only break one layer of for loop
+		// 	};
+		// };
 
 		// Update Vs
-		flag[index] = double(tempflag)/double(para.nm1);
+		flag[index] = double(tempflag)/double(nm1);
 		if (tempflag == 0) {
 			Vplus1_high[index] = -51709394;
 			Vplus1_low[index] = -51709394; 
@@ -412,16 +415,16 @@ int main()
 	para_struct para;
 
 	// Set Accuracy Parameters
-	para.nk = 128;
+	para.nk = 256;
 	para.nb = 1 ;
 	para.nz = 7;
 	para.nxxi = 7;
-	para.nm1 = 2560 ;
-	para.tol = 1e-5;
+	para.nm1 = 256 ;
+	para.tol = 1e-6;
 	para.maxiter = 1e5;
-	para.kwidth = 2.0 ;
+	para.kwidth = 1.5 ;
 	para.bwidth = 1.15 ;
-	para.mkwidth = 3.0 ; 
+	para.mkwidth = 20.0 ; 
 
 	// Set Model Parameters
 	para.bbeta = 0.9825;
@@ -476,6 +479,14 @@ int main()
 
 	host_vector<double> h_P(para.nz*para.nxxi*para.nz*para.nxxi, 1.0/double(para.nz*para.nxxi));
 	host_vector<double> h_flag(para.nk*para.nz*para.nxxi, 0); 
+
+	// host_vector<double> h_c(para.nk*para.nz*para.nxxi*para.nm1);
+	// host_vector<double> h_n(para.nk*para.nz*para.nxxi*para.nm1);
+	// host_vector<double> h_kplus(para.nk*para.nz*para.nxxi*para.nm1);
+	// host_vector<double> h_mmu(para.nk*para.nz*para.nxxi*para.nm1);
+	// host_vector<double> h_lhs(para.nk*para.nz*para.nxxi*para.nm1);
+	// host_vector<double> h_rhs_low(para.nk*para.nz*para.nxxi*para.nm1);
+	// host_vector<double> h_rhs_high(para.nk*para.nz*para.nxxi*para.nm1);
 	
 	// Create capital grid
 	double minK = 1/para.kwidth*para.kss;
@@ -498,6 +509,9 @@ int main()
 	};
 	display_vec(h_Z);
 	display_vec(h_XXI);
+	display_vec(h_P);
+	save_vec(h_Z,"Zgrid.csv");
+	save_vec(h_XXI,"XXIgrid.csv");
 
 	// Copy to the device
 	device_vector<double> d_K = h_K;

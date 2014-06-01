@@ -4,11 +4,11 @@
 This is a project that tries to solve a variant of Jermann Quadrini (2012 AER) without debt and adjustment. I try to solve it in two ways: Adrian's method and projection method. My guess is that projection method should be much faster than Adrian's method. It should solve the model within 5 seconds if given a good initial guess.
 
 ## Folder and Files
-+ /cppcode.cpp: source code that **has** to be compiled by GCC4.8+
-+ /cuda\_helpers.h: source code that **has** to be compiled by NVCC 5.5+
++ /cppcode.cpp: only source code only GCC4.8+ understands.
++ /cuda\_helpers.h: all the rest of helper codes go in here.
 + /Model/: contains LyX and PDF that describe the model.
 + /MATLAB/: contains some codes written in MATLAB
-+ /Dynare/: contains some codes written in Dynare
++ /Dynare/: contains some codes written in Dynare to check accuracy of linearization
 
 ## Goal
 + Both methods yields the same solution. Can also use Value Function Iteration to check?
@@ -23,7 +23,7 @@ This is a project that tries to solve a variant of Jermann Quadrini (2012 AER) w
 + Study why no shrinking, multiple equilibria or what?
 	+ Rewrite eureka using objects
 	+ Could it be that the grid points are too sparse?
-	+ 
+	+ ~~Newton labor too harsh on convergence?~~ I played with it. Not a problem.
 + Write eureka in terms of objects. Takes in an object of augmented state and some auxillary things, spits out an object of control variables, given an parameter object.
 + Try how to call QZ from LAPACK
 + Compare speed of function pointer v.s. functor approach in finding Newton' method

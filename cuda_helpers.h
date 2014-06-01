@@ -72,23 +72,31 @@ void display_vec(T vec) {
 // A function template to save vectors to file, C array style
 template <class T>
 void save_vec(T vec, int size, std::string filename ) {
+	std::cout << "================================================================================" << std::endl;
+	std::cout << "Saving to " << filename << std::endl;
 	std::ofstream fileout(filename.c_str(), std::ofstream::trunc);
 	for (int i = 0; i < size; i++) {
 		fileout << std::setprecision(16) << vec[i] << '\n';
 	};
 	fileout.close();
+	std::cout << "Done!" << std::endl;
+	std::cout << "================================================================================" << std::endl;
 
 };
 
 // A function template to save vectors to file, std::vector style
 template <class T>
 void save_vec(T vec, std::string filename ) {
+	std::cout << "================================================================================" << std::endl;
+	std::cout << "Saving to " << filename << std::endl;
 	int size = vec.size();
 	std::ofstream fileout(filename.c_str(), std::ofstream::trunc);
 	for (int i = 0; i < size; i++) {
 		fileout << vec[i] << '\n';
 	};
 	fileout.close();
+	std::cout << "Done!" << std::endl;
+	std::cout << "================================================================================" << std::endl;
 };
 
 // Newton's Method with bracketing, i.e. we know on two points the function differs in sign.
@@ -100,7 +108,7 @@ double newton_bracket(T func, const double x1, const double x2, double x0) {
 // Purpose: Tries to find a root for function named func. Its first derivative is given by func.prime().
 //			It is assumed that func(x1) and func(x2) are different in sign so a root exists within. x0 is the guess.
 	const int maxiter = 100;
-	const double tol = 1e-5;
+	const double tol = 1e-3;
 	// Checking the bounds: they need to make sense. Or sometimes the bounds are solutions.
 	double f1 = func(x1);
 	double f2 = func(x2);
@@ -170,8 +178,8 @@ __host__ __device__
 double newton(T func, const double x1, const double x2, double x0) {
 // Purpose: Tries to find a root for function named func. Its first derivative is given by func.prime().
 //			func is only defined on [x1,x2] We "pull back" when outside. x0 is the guess.
-	const int maxiter = 30;
-	const double tol = 1e-3;
+	const int maxiter = 50;
+	const double tol = 1e-5;
 	// Initialize guess and other things
 	double x_old = x0;
 	double x = x0;
