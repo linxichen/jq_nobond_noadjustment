@@ -78,6 +78,7 @@ struct para_struct {
 	double dss;
 	double mmuss;
 	double mkss;
+	double yss;
 
 
 	// Find steady state and find aalpha based steady state target
@@ -101,6 +102,7 @@ struct para_struct {
 		wss = aalpha*css/(1-nss);
 		dss = css - wss*nss;
 		mkss = (1-ddelta+(1-mmuss)*zbar*ttheta*pow(kss,ttheta-1)*pow(nss,1-ttheta))/css;
+		yss = zbar*pow(kss,ttheta)*pow(nss,1-ttheta);
 	};
 
 	// Export parameters to a .m file in MATLAB syntax
@@ -136,6 +138,7 @@ struct para_struct {
 		fileout << setprecision(16) << "dss=" << dss << ";"<< endl;
 		fileout << setprecision(16) << "mmuss=" << mmuss << ";"<< endl;
 		fileout << setprecision(16) << "mkss=" << mkss << ";"<< endl;
+		fileout << setprecision(16) << "yss=" << yss << ";"<< endl;
 		fileout.close();
 	};
 };

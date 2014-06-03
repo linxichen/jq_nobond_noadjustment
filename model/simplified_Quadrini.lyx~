@@ -299,7 +299,8 @@ m_{k,t} & = & \frac{1}{c_{t}}[1-\delta+(1-\mu_{t})z_{t}\theta k_{t}^{\theta-1}n_
 \mu_{t} & \geq & 0\\
 w_{t} & = & (1-\mu_{t})(1-\theta)z_{t}k_{t}^{\theta}n_{t}^{-\theta}\\
 w_{t} & = & \frac{\alpha c_{t}}{1-n_{t}}\\
-w_{t}n_{t}+d_{t} & = & c_{t}
+w_{t}n_{t}+d_{t} & = & c_{t}\\
+y_{t} & = & z_{t}k_{t}^{\theta}n_{t}^{1-\theta}
 \end{eqnarray*}
 
 \end_inset
@@ -466,7 +467,7 @@ substitue this into the definition of shadow value and use resource constraint
 \begin_inset Formula 
 \begin{eqnarray*}
 f(n) & = & (1-\delta)km+\delta-1+(1-\delta)(1-km-\frac{\alpha\theta}{1-\theta})n+(1-\frac{1}{\xi})zk^{\theta}mn^{1-\theta}\\
- & + & (\frac{1}{\xi}-1)zk^{\theta}(m+\frac{\alpha\theta}{k(1-\theta)})n^{2-\theta}+(1-\delta)n.
+ & + & (\frac{1}{\xi}-1)zk^{\theta}(m+\frac{\alpha\theta}{k(1-\theta)})n^{2-\theta}.
 \end{eqnarray*}
 
 \end_inset

@@ -1,0 +1,56 @@
+Starting Dynare (version 4.4.2).
+Starting preprocessing of the model file ...
+Found 11 equation(s).
+Evaluating expressions...done
+Computing static model derivatives:
+ - order 1
+Computing dynamic model derivatives:
+ - order 1
+Processing outputs ...done
+Preprocessing completed.
+Starting MATLAB/Octave computing.
+fig at 166</a>
+  In <a href="matlab: opentoline('/Applications/Dynare/4.4.2/matlab/dynare.m',48,1)">dynare at 48</a>] 
+[Warning: Function bsxfun has the same name as a MATLAB builtin. We
+suggest you rename the function to avoid a potential name conflict.] 
+[> In <a href="matlab: opentoline('/Applications/MATLAB_R2013b.app/toolbox/matlab/general/path.m',110,1)">path at 110</a>
+  In <a href="matlab: opentoline('/Applications/MATLAB_R2013b.app/toolbox/matlab/general/addpath.m',87,1)">addpath at 87</a>
+  In <a href="matlab: opentoline('/Applications/Dynare/4.4.2/matlab/dynare_config.m',171,1)">dynare_config at 171</a>
+  In <a href="matlab: opentoline('/Applications/Dynare/4.4.2/matlab/dynare.m',48,1)">dynare at 48</a>] 
+[Warning: Function ilu has the same name as a MATLAB builtin. We
+suggest you rename the function to avoid a potential name conflict.] 
+[> In <a href="matlab: opentoline('/Applications/MATLAB_R2013b.app/toolbox/matlab/general/path.m',110,1)">path at 110</a>
+  In <a href="matlab: opentoline('/Applications/MATLAB_R2013b.app/toolbox/matlab/general/addpath.m',87,1)">addpath at 87</a>
+  In <a href="matlab: opentoline('/Applications/Dynare/4.4.2/matlab/dynare_config.m',171,1)">dynare_config at 171</a>
+  In <a href="matlab: opentoline('/Applications/Dynare/4.4.2/matlab/dynare.m',48,1)">dynare at 48</a>] 
+[Warning: Function ordeig has the same name as a MATLAB builtin. We
+suggest you rename the function to avoid a potential name conflict.] 
+[> In <a href="matlab: opentoline('/Applications/MATLAB_R2013b.app/toolbox/matlab/general/path.m',110,1)">path at 110</a>
+  In <a href="matlab: opentoline('/Applications/MATLAB_R2013b.app/toolbox/matlab/general/addpath.m',87,1)">addpath at 87</a>
+  In <a href="matlab: opentoline('/Applications/Dynare/4.4.2/matlab/dynare_config.m',171,1)">dynare_config at 171</a>
+  In <a href="matlab: opentoline('/Applications/Dynare/4.4.2/matlab/dynare.m',48,1)">dynare at 48</a>] 
+
+Configuring Dynare ...
+[mex] Generalized QZ.
+[mex] Sylvester equation solution.
+[mex] Kronecker products.
+[mex] Sparse kronecker products.
+[mex] Local state space iteration (second order).
+[mex] Bytecode evaluation.
+[mex] k-order perturbation solver.
+[mex] k-order solution simulation.
+[mex] Quasi Monte-Carlo sequence (Sobol).
+[mex] Markov Switching SBVAR.
+
+Starting Dynare (version 4.4.2).
+Starting preprocessing of the model file ...
+Found 11 equation(s).
+Evaluating expressions...done
+Computing static model derivatives:
+ - order 1
+Computing dynamic model derivatives:
+ - order 1
+Processing outputs ...done
+Preprocessing completed.
+Starting MATLAB/Octave computing.
+
