@@ -232,12 +232,13 @@ lapack_logical qzdivide(const double* real_alpha, const double* imagine_alpha, c
 	};
 };
 
-void qzdecomp (mat &A, mat &B, mat &Q, mat &Z) {
+int qzdecomp (mat &A, mat &B, mat &Q, mat &Z) {
 // Purpose:
 // 	Compute QZ decomposition for a pair nonsymmetric matrice (A,B).
 // 	A = Q*S*Z', B = Q*T*Z'
 // 	where S, T is stored in A, B when done.
 // 	The decomposition is ordered such that explosive eigenvalues are placed in lower right of inv(S)*T;
+// 	Returns the number of unstable roots
 
 	// Preparations
 	int n_selected;
@@ -270,6 +271,10 @@ void qzdecomp (mat &A, mat &B, mat &Q, mat &Z) {
 			Z.memptr(),
 			B.n_rows
 			);
+	
+	// Transpose Q and Z, consistent with Juan's notation.
+	Q = trans(Q);
+	Z = trans(Z);
 
 	// Print and See
 	A.print("S = ");
@@ -278,11 +283,13 @@ void qzdecomp (mat &A, mat &B, mat &Q, mat &Z) {
 	Z.print("Z = ");
 
 	// Check accuray
-	mat Atilde = Q*A*trans(Z);
+	mat Atilde = trans(Q)*A*Z;
 	Atilde.print("Atilde = ");
 	mat wewant = inv(A)*B;
 	wewant.print("We want this matrix on RHS:");
-
+	
+	// Compute the number of unstable roots (in lower right of inv(S)*T)
+	return A.n_rows - n_selected;
 };
 
 void test() {
@@ -297,5 +304,63 @@ void test() {
 	mat Q(3,3);
 	mat Z(3,3);
 	qzdecomp(A,B,Q,Z);
+};
+
+void linearQZ(double* A_ptr, double* B_ptr, double* C_ptr, double* rrho_ptr, int n, int n_jump, int n_shock, double* Pphi_ptr) {
+// Purpose: (Following Juan's notation)
+// 	Solves any linear rational expectation model in the form of:
+// 	A* E_t y_t+1 = B* y_t + C * z_t and
+// 	z_t = rrho* z_t-1 + G * epsilon_t
+// 	y_t is the n-by-1 vector of endogenuous variables which contains n_predeter
+// 	predetermined (jump) variables. A, B, rrho, and C are n-by-n
+
+	// Wrap armadillo mat around raw arrays
+	mat A(A_ptr,n,n,false,true) ;
+	mat B(B_ptr,n,n,false,true) ;
+	mat C(C_ptr,n,n_shock,false,true) ;
+	mat rrho(rrho_ptr,n_shock,n_shock,false,true) ;
+	
+	// Call QZ decomposition
+	mat Llambda = A;
+	mat Oomega = B;
+	mat Q(n,n);
+	mat Z(n,n);
+	int n_unstable = qzdecomp(Llambda,Oomega,Q,Z);
+
+	// Check counting rule
+	if (n_unstable > n_jump) {
+		printf("There is %i unstables roots but %i jump variables => no solution.\n", n_unstable, n_jump);
+	} else if (n_unstable < n_jump) {
+		printf("There is %i unstables roots but %i jump variables => infinitely many solutions.\n", n_unstable, n_jump);
+	} else {
+		printf("There is %i unstables roots but %i jump variables => unique solution.\n", n_unstable, n_jump);
+	};
+
+	// Find solution.
+	mat Ggamma = inv(Llambda)*Oomega;
+	mat Ppsi = inv(Llambda)*Q*C;
+	mat Ggamma11 = Ggamma(span(0,n-n_jump-1),span(0,n-n_jump-1));
+	mat Ggamma12 = Ggamma(span(0,n-n_jump-1),span(n-n_jump,n-1));
+	mat Ggamma21 = Ggamma(span(n-n_jump,n-1),span(0,n-n_jump-1));
+	mat Ggamma22 = Ggamma(span(n-n_jump,n-1),span(n-n_jump,n-1));
+	mat Z11 = Z(span(0,n-n_jump-1),span(0,n-n_jump-1));
+	mat Z12 = Z(span(0,n-n_jump-1),span(n-n_jump,n-1));
+	mat Z21 = Z(span(n-n_jump,n-1),span(0,n-n_jump-1));
+	mat Z22 = Z(span(n-n_jump,n-1),span(n-n_jump,n-1));
+	mat Ppsi1 = Ppsi(span(0,n-n_jump-1),span::all);
+	mat Ppsi2 = Ppsi(span(n-n_jump,n-1),span::all);
+	vec M_vec = inv( eye(n_shock*n_jump,n_shock*n_jump)-kron(trans(rrho),inv(Ggamma22))  )*vectorise(Ppsi2);
+	mat M = reshape(M_vec,n_jump,n_shock);
+	mat Pphi_cstar_z = -inv(Ggamma22)*M;	// Finally get c*_t = Pphi_cstrt_z * z_t
+	mat Pphi_c_k = -inv(Z22)*Z21;
+	mat Pphi_c_z = inv(Z22)*Pphi_cstar_z;
+	mat Pphi_k_k = inv(Z11+Z12*Pphi_c_k)*Ggamma11*(Z11+Z12*Pphi_c_k);
+	mat Pphi_k_z = inv(Z11+Z12*Pphi_c_k)*(Ggamma11*Z12*Pphi_c_z+Ggamma12*Pphi_cstar_z+Ppsi1-Z12*Pphi_c_z*rrho);
+	mat Pphi = join_cols( join_rows(Pphi_k_k,Pphi_k_z), join_rows(Pphi_c_k,Pphi_c_z)  );
+
+	// Output Pphi, the solution.
+	for (int i = 0; i < n*(n-n_jump+n_shock); i++) {
+		Pphi_ptr[i] = Pphi.memptr()[i];
+	};
 
 };
