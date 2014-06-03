@@ -14,3 +14,5 @@ void chebyspace(double, double, int, double*);
 typedef void (*gridgen_fptr)(double, double, int, double*);
 void tauchen_vec(int, int, int, double*, double*, double*, double*, gridgen_fptr);
 
+// void qzdecomp(arma::mat &, arma::mat &, arma::mat &, arma::mat &);
+void test();

@@ -125,8 +125,8 @@ struct para_struct {
 		fileout << setprecision(16) << "rrhozxxi=" << rrhozxxi << ";"<< endl;
 		fileout << setprecision(16) << "rrhoxxiz=" << rrhoxxiz << ";"<< endl;
 		fileout << setprecision(16) << "rrhoxxixxi=" << rrhoxxixxi << ";"<< endl;
-		fileout << setprecision(16) << "var_epsz=" << var_epsz << ";"<< endl;
-		fileout << setprecision(16) << "var_epsxxi=" << var_epsxxi << ";"<< endl;
+		fileout << setprecision(16) << "ssigmaepsz=" << sqrt(var_epsz) << ";"<< endl;
+		fileout << setprecision(16) << "ssigmaepsxxi=" << sqrt(var_epsxxi) << ";"<< endl;
 
 		// Steady States
 		fileout << setprecision(16) << "kss=" << kss << ";"<< endl;
@@ -410,6 +410,7 @@ struct myDist {
 
 int main()
 {
+	test();
 
 	// Initialize Parameters
 	para_struct para;
@@ -509,9 +510,9 @@ int main()
 	};
 	display_vec(h_Z);
 	display_vec(h_XXI);
-	display_vec(h_P);
 	save_vec(h_Z,"Zgrid.csv");
 	save_vec(h_XXI,"XXIgrid.csv");
+	save_vec(h_P,"Pcuda.csv");
 
 	// Copy to the device
 	device_vector<double> d_K = h_K;
@@ -737,7 +738,7 @@ int main()
 	fout_wage.close();
 
 	// Export parameters to MATLAB
-	para.exportmatlab("./MATLAB/parameters.m");
+	para.exportmatlab("./MATLAB/mypara.m");
 	return 0;
 }
 

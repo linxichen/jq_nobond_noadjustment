@@ -34,38 +34,22 @@ varexo epsz epsxxi;
 
 parameters 
 
-bbeta ttau aalpha ttheta ddelta kkappa 
- eeta oomega uupsilon
+bbeta aalpha ttheta ddelta
 rrhozz rrhoxxixxi rrhozxxi rrhoxxiz
-ssigmaz ssigmaxxi 
+ssigmaepsz ssigmaepsxxi 
 zbar xxibar;
 
 
 //----------------------------------------------------------------
 // 4. Calibration 
 //----------------------------------------------------------------
-zbar        = 1;
-// xxibar      = 0.0505;
-xxibar      = 0.1634;
-bbeta       = 0.9825;
-ttau        = 0.35;
-ddelta      = 0.0250;
-// aalpha = xxibar/(0.3*( (1+xxibar-bbeta*(1-ddelta))/(1-ttheta+bbeta*ttheta) -ddelta ));
-aalpha      = 2.02572998157289;
-// aalpha = 2.7070;
-ttheta      = 0.3600;
-
-// Calibrate the parameters to be calculated
-// This serves as an initial guess of parameter draws
-ssigmaz     = 0.0042;
-ssigmaxxi   = 0.0072;
-rrhozz      = 0.8147;
-rrhozxxi    = 0.0000;
-rrhoxxiz    = 0.0000;
-rrhoxxixxi  = 0.8393;
-eeta        = 1.0;
-oomega      = 0.6;
-uupsilon    = 1.0;
+cd ../MATLAB;
+mypara;
+cd ../Dynare
+for i=1:length(M_.params)
+    deep_parameter_name = M_.param_names(i,:);
+    eval(['M_.params(i)  = ' deep_parameter_name ' ;'])
+end
  
 //----------------------------------------------------------------
 // 5. Steady State
@@ -83,7 +67,7 @@ steady_state_model;
     k = kovern*n;
     d = c - w*n;
 	inv = ddelta*k;
-    mk = (c^-uupsilon)*( (1-ddelta) + (1-mmu)*ttheta*z*k^(ttheta-1)*n^(1-ttheta) ) ;
+    mk = (c^-1)*( (1-ddelta) + (1-mmu)*ttheta*z*k^(ttheta-1)*n^(1-ttheta) ) ;
 	y = z*k^ttheta*n^(1-ttheta);
     yovern = y/n;
 end;
@@ -102,11 +86,11 @@ model;
 	(1-mmu)*(1-ttheta)*z*(k(-1)^ttheta)*n^(-ttheta) = w;
 
 	//3. Labor Supply
-	w = aalpha*c^(uupsilon)/(1-n);
+	w = aalpha*c^(1)/(1-n);
 
 	//4. Capital Demand
-	( 1-mmu*xxi )*c^(-uupsilon)
-	= bbeta*(c(+1)^(-uupsilon))*( 1-ddelta+(1-mmu(+1))*z(+1)*ttheta*k^(ttheta-1)*n(+1)^(1-ttheta) );
+	( 1-mmu*xxi )*c^(-1)
+	= bbeta*(c(+1)^(-1))*( 1-ddelta+(1-mmu(+1))*z(+1)*ttheta*k^(ttheta-1)*n(+1)^(1-ttheta) );
 
 	// 5. Resource Constraint 
 	(1-ddelta)*k(-1) + y - k - c = 0;
@@ -121,13 +105,13 @@ model;
 	inv = k-(1-ddelta)*k(-1);
 
 	// 9. MK Definition
-	mk = (c^(-uupsilon))*( (1-ddelta)+(1-mmu)*z*ttheta*k(-1)^(ttheta-1)*n^(1-ttheta) );
+	mk = (c^(-1))*( (1-ddelta)+(1-mmu)*z*ttheta*k(-1)^(ttheta-1)*n^(1-ttheta) );
 
 	// 10
-	(z/zbar) = (z(-1)/zbar)^(rrhozz)*(xxi(-1)/xxibar)^(rrhozxxi)*exp(ssigmaz*epsz);
+	(z/zbar) = (z(-1)/zbar)^(rrhozz)*(xxi(-1)/xxibar)^(rrhozxxi)*exp(ssigmaepsz*epsz);
 
 	// 11
-	(xxi/xxibar)= (xxi(-1)/xxibar)^(rrhoxxixxi)*(z(-1)/zbar)^(rrhoxxiz)*exp(-ssigmaxxi*epsxxi);
+	(xxi/xxibar)= (xxi(-1)/xxibar)^(rrhoxxixxi)*(z(-1)/zbar)^(rrhoxxiz)*exp(ssigmaepsxxi*epsxxi);
 
     // 12
     yovern = y/n;

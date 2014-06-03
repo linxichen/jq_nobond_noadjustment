@@ -2,6 +2,7 @@
 #include <iostream>
 #include <thrust/host_vector.h>
 #include "armadillo"
+#include <lapacke.h>
 
 using namespace arma;
 using namespace std;
@@ -211,5 +212,90 @@ void findprojector(double* X_ptr, int nrows, int ncols, double * P_ptr) {
 	for (int i=0; i<nrows*ncols; i++) {
 		P_ptr[i] = P.memptr()[i];
 	};
+
+};
+
+lapack_logical qzdivide(const double* real_alpha, const double* imagine_alpha, const double* real_beta) {
+	// Generalised eigenvalues are a/c + b/c*i
+	double a = * real_alpha;
+	double b = * imagine_alpha;
+	double c = * real_beta;
+
+	// Determined whether eigenvalues are within unit circle, assuming not all a,b,c are zeros.
+	// We want the >1 on upper left, because we will invert it later.
+	if (c==0) {
+		return true;
+	} else if (sqrt( a*a/(c*c) + b*b/(c*c)  )<1) {
+		return false;
+	} else {
+		return true;
+	};
+};
+
+void qzdecomp (mat &A, mat &B, mat &Q, mat &Z) {
+// Purpose:
+// 	Compute QZ decomposition for a pair nonsymmetric matrice (A,B).
+// 	A = Q*S*Z', B = Q*T*Z'
+// 	where S, T is stored in A, B when done.
+// 	The decomposition is ordered such that explosive eigenvalues are placed in lower right of inv(S)*T;
+
+	// Preparations
+	int n_selected;
+	vec alphar(A.n_rows);
+	vec alphai(A.n_rows);
+	vec beta(B.n_rows);
+	lapack_int info;	// stores the exit information 
+	mat A_old = A;
+	mat B_old = B;
+	LAPACK_D_SELECT3 selctg = qzdivide; 
+
+	// Call LAPACK
+	info = LAPACKE_dgges(
+			LAPACK_COL_MAJOR,	// indicate we use column major
+			'V',				// ... and compute left schur vector 
+			'V',				// ... and compute right schur vector
+			'S',				// ... and sort eigenvalues
+			selctg,				// with this func to divide eigenvalues
+			A.n_rows,			// # of rows in A
+			A.memptr(),			// array that stores A
+			A.n_rows,			// leading dimension of A (rows)
+			B.memptr(),			// array that stores B
+			B.n_rows,			// rows of B
+			&n_selected,		// output the # of eigenvalues 
+			alphar.memptr(),	// stores aux vectors
+			alphai.memptr(),	// stores aux vector
+			beta.memptr(),		// stores aux vector
+			Q.memptr(),			// stores Q
+			A.n_rows,
+			Z.memptr(),
+			B.n_rows
+			);
+
+	// Print and See
+	A.print("S = ");
+	B.print("T = ");
+	Q.print("Q = ");
+	Z.print("Z = ");
+
+	// Check accuray
+	mat Atilde = Q*A*trans(Z);
+	Atilde.print("Atilde = ");
+	mat wewant = inv(A)*B;
+	wewant.print("We want this matrix on RHS:");
+
+};
+
+void test() {
+	mat A(3,3);
+	A << 4 << 2 << 9 << endr
+	  << 1 << 2 << 7 << endr
+	  << 9 << 3 << 0 << endr;
+	mat B(3,3);
+	B << 7 << 6 << 8 << endr
+	  << 2 << 5 << 1 << endr
+	  << 8 << 4 << 1 << endr;
+	mat Q(3,3);
+	mat Z(3,3);
+	qzdecomp(A,B,Q,Z);
 
 };

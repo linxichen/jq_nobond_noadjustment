@@ -8,6 +8,7 @@ ICUDA_MAC = /Developer/NVIDIA/CUDA-5.5/include
 LCUDA_MAC = /Developer/NVIDIA/CUDA-5.5/lib
 ICPP_MAC = /usr/local/include
 LCPP_MAC = /usr/local/lib
+ILAPACK = /usr/include/lapacke
 
 SDIR     = .
 IDIR     = .
@@ -26,10 +27,10 @@ CXX       = g++
 MD		  = markdown
 
 # Standard optimization flags to C++ compiler
-CXXFLAGS  = -O3 -I$(ICUDA) -I$(ICUDA_MAC) -I$(ICPP_MAC)
+CXXFLAGS  = -O3 -I$(ICUDA) -I$(ICUDA_MAC) -I$(ICPP_MAC) -I$(ILAPACK)
 
 # Add CUDA libraries to C++ compiler linking process
-LDFLAGS  += -lcublas -lcurand -lcudart -L$(LCUDA) -L$(LCUDA_MAC) -L$(LCPP_MAC) -lnlopt -larmadillo 
+LDFLAGS  += -lcublas -lcurand -lcudart -L$(LCUDA) -L$(LCUDA_MAC) -L$(LCPP_MAC) -lnlopt -larmadillo -llapacke -lopenblas
 
 # List Executables and Objects
 EXEC = adrian 
