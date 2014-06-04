@@ -9,50 +9,6 @@ Computing dynamic model derivatives:
 Processing outputs ...done
 Preprocessing completed.
 Starting MATLAB/Octave computing.
-tlab: opentoline('/Applications/Dynare/4.4.2/matlab/dynare.m',48,1)">dynare at 48</a>] 
-[Warning: Function bsxfun has the same name as a MATLAB builtin. We
-suggest you rename the function to avoid a potential name conflict.] 
-[> In <a href="matlab: opentoline('/Applications/MATLAB_R2013b.app/toolbox/matlab/general/path.m',110,1)">path at 110</a>
-  In <a href="matlab: opentoline('/Applications/MATLAB_R2013b.app/toolbox/matlab/general/addpath.m',87,1)">addpath at 87</a>
-  In <a href="matlab: opentoline('/Applications/Dynare/4.4.2/matlab/dynare_config.m',171,1)">dynare_config at 171</a>
-  In <a href="matlab: opentoline('/Applications/Dynare/4.4.2/matlab/dynare.m',48,1)">dynare at 48</a>] 
-[Warning: Function ilu has the same name as a MATLAB builtin. We
-suggest you rename the function to avoid a potential name conflict.] 
-[> In <a href="matlab: opentoline('/Applications/MATLAB_R2013b.app/toolbox/matlab/general/path.m',110,1)">path at 110</a>
-  In <a href="matlab: opentoline('/Applications/MATLAB_R2013b.app/toolbox/matlab/general/addpath.m',87,1)">addpath at 87</a>
-  In <a href="matlab: opentoline('/Applications/Dynare/4.4.2/matlab/dynare_config.m',171,1)">dynare_config at 171</a>
-  In <a href="matlab: opentoline('/Applications/Dynare/4.4.2/matlab/dynare.m',48,1)">dynare at 48</a>] 
-[Warning: Function ordeig has the same name as a MATLAB builtin. We
-suggest you rename the function to avoid a potential name conflict.] 
-[> In <a href="matlab: opentoline('/Applications/MATLAB_R2013b.app/toolbox/matlab/general/path.m',110,1)">path at 110</a>
-  In <a href="matlab: opentoline('/Applications/MATLAB_R2013b.app/toolbox/matlab/general/addpath.m',87,1)">addpath at 87</a>
-  In <a href="matlab: opentoline('/Applications/Dynare/4.4.2/matlab/dynare_config.m',171,1)">dynare_config at 171</a>
-  In <a href="matlab: opentoline('/Applications/Dynare/4.4.2/matlab/dynare.m',48,1)">dynare at 48</a>] 
-
-Configuring Dynare ...
-[mex] Generalized QZ.
-[mex] Sylvester equation solution.
-[mex] Kronecker products.
-[mex] Sparse kronecker products.
-[mex] Local state space iteration (second order).
-[mex] Bytecode evaluation.
-[mex] k-order perturbation solver.
-[mex] k-order solution simulation.
-[mex] Quasi Monte-Carlo sequence (Sobol).
-[mex] Markov Switching SBVAR.
-
-Starting Dynare (version 4.4.2).
-Starting preprocessing of the model file ...
-Found 12 equation(s).
-Evaluating expressions...done
-Computing static model derivatives:
- - order 1
-Computing dynamic model derivatives:
- - order 1
-Processing outputs ...done
-Preprocessing completed.
-Starting MATLAB/Octave computing.
-
 
 STEADY-STATE RESULTS:
 
@@ -91,47 +47,47 @@ k(-1)                       0.092697        0.140724       -0.048026        0.02
 xxi(-1)                    10.088499       15.502043       -5.413544        4.359304       52.576072      -27.267197       -0.091000       -9.403973
 z(-1)                       0.077904       -0.349471        0.427375       -0.409964       -2.118139        2.195091        0.945700        1.144887
 epsz                        0.000212       -0.001906        0.002118       -0.002019       -0.010903        0.010871        0.004500        0.005594
-epsxxi                     -0.010194       -0.015618        0.005424       -0.004362       -0.052879        0.027318               0        0.009384
+epsxxi                      0.010194        0.015618       -0.005424        0.004362        0.052879       -0.027318               0       -0.009384
 
 
 MOMENTS OF SIMULATED VARIABLES (HP filter, lambda = 1600)
 
 VARIABLE      MEAN    STD. DEV.   VARIANCE   SKEWNESS   KURTOSIS 
-y            1.095246   0.013388   0.000179   0.010229  -0.016526
-c            0.821284   0.020593   0.000424   0.006170  -0.017311
-inv          0.273962   0.007581   0.000057   0.001568  -0.018235
-n            0.299896   0.006244   0.000039  -0.003659  -0.020864
-w            2.093880   0.070445   0.004962   0.003485  -0.018182
-mmu          0.104159   0.038214   0.001460   0.002023  -0.019937
-z            0.999860   0.005881   0.000035   0.014775   0.019776
-d            0.193338   0.014198   0.000202   0.006378  -0.021795
+y            1.095394   0.013414   0.000180  -0.009502  -0.030533
+c            0.821575   0.020636   0.000426  -0.011454  -0.032353
+inv          0.273819   0.007598   0.000058   0.013226  -0.027958
+n            0.300103   0.006258   0.000039  -0.012808  -0.022380
+w            2.095243   0.070594   0.004983  -0.012106  -0.031421
+mmu          0.103078   0.038301   0.001467   0.012847  -0.025636
+z            0.999745   0.005887   0.000035   0.015162   0.016597
+d            0.192786   0.014234   0.000203   0.012765  -0.016191
 
 
 CORRELATION OF SIMULATED VARIABLES (HP filter, lambda = 1600)
 
 VARIABLE      y       c      inv      n       w      mmu      z       d   
-y           1.0000  0.9899 -0.9230  0.8909  0.9742 -0.9167  0.0422 -0.8351
-c           0.9899  1.0000 -0.9682  0.9457  0.9963 -0.9638 -0.0997 -0.9038
-inv        -0.9230 -0.9682  1.0000 -0.9956 -0.9858  0.9990  0.3455  0.9803
-n           0.8909  0.9457 -0.9956  1.0000  0.9702 -0.9981 -0.4117 -0.9938
-w           0.9742  0.9963 -0.9858  0.9702  1.0000 -0.9832 -0.1836 -0.9374
-mmu        -0.9167 -0.9638  0.9990 -0.9981 -0.9832  1.0000  0.3579  0.9852
-z           0.0422 -0.0997  0.3455 -0.4117 -0.1836  0.3579  1.0000  0.5079
-d          -0.8351 -0.9038  0.9803 -0.9938 -0.9374  0.9852  0.5079  1.0000
+y           1.0000  0.9899 -0.9231  0.8907  0.9742 -0.9166  0.0409 -0.8348
+c           0.9899  1.0000 -0.9683  0.9455  0.9963 -0.9637 -0.1010 -0.9036
+inv        -0.9231 -0.9683  1.0000 -0.9955 -0.9859  0.9990  0.3464  0.9802
+n           0.8907  0.9455 -0.9955  1.0000  0.9701 -0.9981 -0.4133 -0.9938
+w           0.9742  0.9963 -0.9859  0.9701  1.0000 -0.9831 -0.1850 -0.9372
+mmu        -0.9166 -0.9637  0.9990 -0.9981 -0.9831  1.0000  0.3594  0.9851
+z           0.0409 -0.1010  0.3464 -0.4133 -0.1850  0.3594  1.0000  0.5095
+d          -0.8348 -0.9036  0.9802 -0.9938 -0.9372  0.9851  0.5095  1.0000
 
 
 AUTOCORRELATION OF SIMULATED VARIABLES (HP filter, lambda = 1600)
 
 VARIABLE      1       2       3       4       5   
-y           0.7102  0.4654  0.2658  0.1075 -0.0177
-c           0.7084  0.4620  0.2619  0.1038 -0.0211
-inv         0.7059  0.4572  0.2563  0.0982 -0.0261
-n           0.7095  0.4627  0.2626  0.1044 -0.0204
-w           0.7080  0.4611  0.2608  0.1027 -0.0220
-mmu         0.7083  0.4609  0.2605  0.1024 -0.0223
-z           0.7129  0.4683  0.2678  0.1080 -0.0164
-d           0.7114  0.4654  0.2657  0.1074 -0.0176
+y           0.7111  0.4666  0.2669  0.1083 -0.0173
+c           0.7091  0.4639  0.2637  0.1051 -0.0200
+inv         0.7062  0.4600  0.2591  0.1003 -0.0241
+n           0.7097  0.4657  0.2655  0.1066 -0.0183
+w           0.7085  0.4633  0.2630  0.1043 -0.0207
+mmu         0.7085  0.4637  0.2633  0.1045 -0.0203
+z           0.7135  0.4690  0.2684  0.1083 -0.0164
+d           0.7116  0.4687  0.2689  0.1098 -0.0153
 
 Saving to: /Users/linxichen/Dropbox/jermanquadrini/code/linxi/jq_201405231121_simple_stoch_nobond_noadj_stayclose/Dynare/matlab.mat
 
-Total computing time : 0h00m07s
+Total computing time : 0h00m06s

@@ -168,6 +168,7 @@ deep_parameter_name = M_.param_names(i,:);
 eval(['M_.params(i)  = ' deep_parameter_name ' ;'])
 end
 steady;
+oo_.dr.eigval = check(M_,options_,oo_);
 %
 % SHOCKS instructions
 %

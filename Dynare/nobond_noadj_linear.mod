@@ -56,23 +56,24 @@ end
 // 5. Steady State
 //----------------------------------------------------------------
 steady_state_model;
-    xxi = xxibar;
-    z = zbar;
-    kovern = xxi^(1/(ttheta-1));
-    covern = kovern^ttheta - ddelta*kovern;
-    mmu = 1 - (bbeta*(1-ddelta)-1+xxi)/(xxi*(1-bbeta*ttheta));
-    G = (1-mmu)*(1-ttheta)*kovern^ttheta / (aalpha*covern);
-    n = G/(1+G);
-    c = covern*n;
-	w = aalpha*c/(1-n);
-    k = kovern*n;
-    d = c - w*n;
-	inv = ddelta*k;
-    mk = (c^-1)*( (1-ddelta) + (1-mmu)*ttheta*z*k^(ttheta-1)*n^(1-ttheta) ) ;
-	y = z*k^ttheta*n^(1-ttheta);
-    yovern = y/n;
+    xxi = 0;
+    z = 0;
+    kovern = 0;
+    covern = 0;
+    mmu = 0;
+    G = 0;
+    n = 0;
+    c = 0;
+	w = 0;
+    k = 0;
+    d = 0;
+	inv = 0;
+    mk = 0 ;
+	y = 0;
+    yovern = 0;
 end;
 steady;
+check;
 
 
 //----------------------------------------------------------------
@@ -84,10 +85,10 @@ model(linear);
 	nss*w + wss*n + d = c;
 
 	//2. Labor Demand
-	w = -(1-ttheta)*yss/nss*mmu + (1-mmuss)*(1-ttheta)/n*y - nss^(-2)*(1-mmuss)*(1-ttheta)*yss*n;
+	w = -(1-ttheta)*yss/nss*mmu + (1-mmuss)*(1-ttheta)/nss*y - nss^(-2)*(1-mmuss)*(1-ttheta)*yss*n;
 
 	//3. Labor Supply
-	w = aalpha/(1-nss)*c + aalpha*c/((1-nss)^2)*n;
+	w = aalpha/(1-nss)*c + aalpha*css/((1-nss)^2)*n;
 
 	//4. Capital Demand
 	-css^(-2)*(1-mmuss*xxibar)*c - xxibar/css*mmu - mmuss*xxibar/css*xxi = bbeta*mk(+1);
@@ -149,5 +150,4 @@ stderr 1;
 end;
 
 stoch_simul(order = 1,periods=100000,irf=40,drop=2000, hp_filter=1600) y c inv n w mmu z d; % compute polices up to 1st order
-save
 // stoch_simul(hp_filter=1600,order = 1,periods=100000,irf=40,drop=2000,loglinear) y c inv n w z d; % compute polices up to 1st order

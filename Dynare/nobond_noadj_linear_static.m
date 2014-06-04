@@ -27,17 +27,17 @@ residual = zeros( 11, 1);
 % Model equations
 %
 
-T48 = y(2)*params(2)/(1-params(14))^2;
+T49 = params(2)*params(17)/(1-params(14))^2;
 T103 = (-(params(17)^(-2)))*(1-params(4)+params(13)*params(3)*(1-params(16))/params(15));
 T114 = params(13)*params(3)*(1-params(16))/(params(17)*params(15)^2);
 lhs =params(14)*y(1)+params(18)*y(3)+y(4);
 rhs =y(2);
 residual(1)= lhs-rhs;
 lhs =y(1);
-rhs =(-(1-params(3)))*params(13)/params(14)*y(6)+(1-params(3))*(1-params(16))/y(3)*y(7)-y(3)*params(13)*(1-params(3))*(1-params(16))*params(14)^(-2);
+rhs =(-(1-params(3)))*params(13)/params(14)*y(6)+(1-params(3))*(1-params(16))/params(14)*y(7)-y(3)*params(13)*(1-params(3))*(1-params(16))*params(14)^(-2);
 residual(2)= lhs-rhs;
 lhs =y(1);
-rhs =y(2)*params(2)/(1-params(14))+y(3)*T48;
+rhs =y(2)*params(2)/(1-params(14))+y(3)*T49;
 residual(3)= lhs-rhs;
 lhs =y(2)*(-(params(17)^(-2)))*(1-params(16)*params(12))-y(6)*params(12)/params(17)-params(16)*params(12)/params(17)*y(11);
 rhs =params(1)*y(9);
@@ -76,12 +76,12 @@ if nargout >= 2,
   g1(1,3)=params(18);
   g1(1,4)=1;
   g1(2,1)=1;
-  g1(2,3)=(-(y(7)*(-((1-params(3))*(1-params(16))))/(y(3)*y(3))-params(13)*(1-params(3))*(1-params(16))*params(14)^(-2)));
+  g1(2,3)=params(13)*(1-params(3))*(1-params(16))*params(14)^(-2);
   g1(2,6)=(-((-(1-params(3)))*params(13)/params(14)));
-  g1(2,7)=(-((1-params(3))*(1-params(16))/y(3)));
+  g1(2,7)=(-((1-params(3))*(1-params(16))/params(14)));
   g1(3,1)=1;
-  g1(3,2)=(-(params(2)/(1-params(14))+y(3)*params(2)/(1-params(14))^2));
-  g1(3,3)=(-T48);
+  g1(3,2)=(-(params(2)/(1-params(14))));
+  g1(3,3)=(-T49);
   g1(4,2)=(-(params(17)^(-2)))*(1-params(16)*params(12));
   g1(4,6)=(-(params(12)/params(17)));
   g1(4,9)=(-params(1));

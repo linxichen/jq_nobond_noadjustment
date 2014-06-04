@@ -9,48 +9,98 @@ Computing dynamic model derivatives:
 Processing outputs ...done
 Preprocessing completed.
 Starting MATLAB/Octave computing.
-fig at 166</a>
-  In <a href="matlab: opentoline('/Applications/Dynare/4.4.2/matlab/dynare.m',48,1)">dynare at 48</a>] 
-[Warning: Function bsxfun has the same name as a MATLAB builtin. We
-suggest you rename the function to avoid a potential name conflict.] 
-[> In <a href="matlab: opentoline('/Applications/MATLAB_R2013b.app/toolbox/matlab/general/path.m',110,1)">path at 110</a>
-  In <a href="matlab: opentoline('/Applications/MATLAB_R2013b.app/toolbox/matlab/general/addpath.m',87,1)">addpath at 87</a>
-  In <a href="matlab: opentoline('/Applications/Dynare/4.4.2/matlab/dynare_config.m',171,1)">dynare_config at 171</a>
-  In <a href="matlab: opentoline('/Applications/Dynare/4.4.2/matlab/dynare.m',48,1)">dynare at 48</a>] 
-[Warning: Function ilu has the same name as a MATLAB builtin. We
-suggest you rename the function to avoid a potential name conflict.] 
-[> In <a href="matlab: opentoline('/Applications/MATLAB_R2013b.app/toolbox/matlab/general/path.m',110,1)">path at 110</a>
-  In <a href="matlab: opentoline('/Applications/MATLAB_R2013b.app/toolbox/matlab/general/addpath.m',87,1)">addpath at 87</a>
-  In <a href="matlab: opentoline('/Applications/Dynare/4.4.2/matlab/dynare_config.m',171,1)">dynare_config at 171</a>
-  In <a href="matlab: opentoline('/Applications/Dynare/4.4.2/matlab/dynare.m',48,1)">dynare at 48</a>] 
-[Warning: Function ordeig has the same name as a MATLAB builtin. We
-suggest you rename the function to avoid a potential name conflict.] 
-[> In <a href="matlab: opentoline('/Applications/MATLAB_R2013b.app/toolbox/matlab/general/path.m',110,1)">path at 110</a>
-  In <a href="matlab: opentoline('/Applications/MATLAB_R2013b.app/toolbox/matlab/general/addpath.m',87,1)">addpath at 87</a>
-  In <a href="matlab: opentoline('/Applications/Dynare/4.4.2/matlab/dynare_config.m',171,1)">dynare_config at 171</a>
-  In <a href="matlab: opentoline('/Applications/Dynare/4.4.2/matlab/dynare.m',48,1)">dynare at 48</a>] 
 
-Configuring Dynare ...
-[mex] Generalized QZ.
-[mex] Sylvester equation solution.
-[mex] Kronecker products.
-[mex] Sparse kronecker products.
-[mex] Local state space iteration (second order).
-[mex] Bytecode evaluation.
-[mex] k-order perturbation solver.
-[mex] k-order solution simulation.
-[mex] Quasi Monte-Carlo sequence (Sobol).
-[mex] Markov Switching SBVAR.
+STEADY-STATE RESULTS:
 
-Starting Dynare (version 4.4.2).
-Starting preprocessing of the model file ...
-Found 11 equation(s).
-Evaluating expressions...done
-Computing static model derivatives:
- - order 1
-Computing dynamic model derivatives:
- - order 1
-Processing outputs ...done
-Preprocessing completed.
-Starting MATLAB/Octave computing.
+w   		 0
+c   		 0
+n   		 0
+d   		 0
+k   		 0
+mmu 		 0
+y   		 0
+inv 		 0
+mk  		 0
+z   		 0
+xxi 		 0
 
+EIGENVALUES:
+         Modulus             Real        Imaginary
+
+           0.927            0.927                0
+          0.9581            0.958          0.01187
+          0.9581            0.958         -0.01187
+           1.098            1.098                0
+
+
+There are 1 eigenvalue(s) larger than 1 in modulus 
+for 1 forward-looking variable(s)
+
+The rank condition is verified.
+
+
+MODEL SUMMARY
+
+  Number of variables:         11
+  Number of stochastic shocks: 2
+  Number of state variables:   3
+  Number of jumpers:           1
+  Number of static variables:  7
+
+
+MATRIX OF COVARIANCE OF EXOGENOUS SHOCKS
+
+Variables     epsz     epsxxi  
+epsz         1.000000  0.000000
+epsxxi       0.000000  1.000000
+
+POLICY AND TRANSITION FUNCTIONS
+                                     y               c               inv             n               w               mmu             z               d  
+k(-1)                       0.092697        0.140724       -0.048026        0.024260        0.431440       -0.181242               0       -0.039535
+z(-1)                       0.077904       -0.349471        0.427375       -0.409964       -2.118139        2.195091        0.945700        1.144887
+xxi(-1)                     1.008850        1.550204       -0.541354        0.435930        5.257607       -2.726720       -0.009100       -0.940397
+epsz                        0.000212       -0.001906        0.002118       -0.002019       -0.010903        0.010871        0.004500        0.005594
+epsxxi                      0.010194        0.015618       -0.005424        0.004362        0.052879       -0.027318               0       -0.009384
+
+
+MOMENTS OF SIMULATED VARIABLES (HP filter, lambda = 1600)
+
+VARIABLE      MEAN    STD. DEV.   VARIANCE   SKEWNESS   KURTOSIS 
+y           -0.000128   0.013414   0.000180  -0.009502  -0.030533
+c           -0.000067   0.020636   0.000426  -0.011454  -0.032353
+inv         -0.000061   0.007598   0.000058   0.013226  -0.027958
+n            0.000103   0.006258   0.000039  -0.012808  -0.022380
+w            0.000139   0.070594   0.004983  -0.012106  -0.031421
+mmu         -0.000473   0.038301   0.001467   0.012847  -0.025636
+z           -0.000255   0.005887   0.000035   0.015162   0.016597
+d           -0.000325   0.014234   0.000203   0.012765  -0.016191
+
+
+CORRELATION OF SIMULATED VARIABLES (HP filter, lambda = 1600)
+
+VARIABLE      y       c      inv      n       w      mmu      z       d   
+y           1.0000  0.9899 -0.9231  0.8907  0.9742 -0.9166  0.0409 -0.8348
+c           0.9899  1.0000 -0.9683  0.9455  0.9963 -0.9637 -0.1010 -0.9036
+inv        -0.9231 -0.9683  1.0000 -0.9955 -0.9859  0.9990  0.3464  0.9802
+n           0.8907  0.9455 -0.9955  1.0000  0.9701 -0.9981 -0.4133 -0.9938
+w           0.9742  0.9963 -0.9859  0.9701  1.0000 -0.9831 -0.1850 -0.9372
+mmu        -0.9166 -0.9637  0.9990 -0.9981 -0.9831  1.0000  0.3594  0.9851
+z           0.0409 -0.1010  0.3464 -0.4133 -0.1850  0.3594  1.0000  0.5095
+d          -0.8348 -0.9036  0.9802 -0.9938 -0.9372  0.9851  0.5095  1.0000
+
+
+AUTOCORRELATION OF SIMULATED VARIABLES (HP filter, lambda = 1600)
+
+VARIABLE      1       2       3       4       5   
+y           0.7111  0.4666  0.2669  0.1083 -0.0173
+c           0.7091  0.4639  0.2637  0.1051 -0.0200
+inv         0.7062  0.4600  0.2591  0.1003 -0.0241
+n           0.7097  0.4657  0.2655  0.1066 -0.0183
+w           0.7085  0.4633  0.2630  0.1043 -0.0207
+mmu         0.7085  0.4637  0.2633  0.1045 -0.0203
+z           0.7135  0.4690  0.2684  0.1083 -0.0164
+d           0.7116  0.4687  0.2689  0.1098 -0.0153
+
+Saving to: /Users/linxichen/Dropbox/jermanquadrini/code/linxi/jq_201405231121_simple_stoch_nobond_noadj_stayclose/Dynare/matlab.mat
+
+Total computing time : 0h00m07s
