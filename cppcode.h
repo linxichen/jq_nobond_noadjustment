@@ -16,3 +16,4 @@ void tauchen_vec(int, int, int, double*, double*, double*, double*, gridgen_fptr
 
 // void qzdecomp(arma::mat &, arma::mat &, arma::mat &, arma::mat &);
 void test();
+void linearQZ(double*, double*, double*, double*, int, int, int, double*);

@@ -1,6 +1,6 @@
 Starting Dynare (version 4.4.2).
 Starting preprocessing of the model file ...
-Found 12 equation(s).
+Found 11 equation(s).
 Evaluating expressions...done
 Computing static model derivatives:
  - order 1
@@ -12,26 +12,43 @@ Starting MATLAB/Octave computing.
 
 STEADY-STATE RESULTS:
 
-w      		 2.0951
-c      		 0.821642
-n      		 0.3
-d      		 0.193111
-k      		 10.9552
-mmu    		 0.103551
-y      		 1.09552
-inv    		 0.273881
-mk     		 1.22593
-yovern 		 3.65174
-z      		 1
-xxi    		 0.1
+w   		 2.0951
+c   		 0.821642
+n   		 0.3
+d   		 0.193111
+k   		 10.9552
+mmu 		 0.103551
+y   		 1.09552
+inv 		 0.273881
+mk  		 1.22593
+z   		 0
+xxi 		 0
+
+EIGENVALUES:
+         Modulus             Real        Imaginary
+
+           0.927            0.927                0
+          0.9581            0.958          0.01187
+          0.9581            0.958         -0.01187
+           1.098            1.098                0
+       4.392e+31       -4.392e+31                0
+       9.028e+31        9.028e+31                0
+       1.783e+32        1.783e+32                0
+
+
+There are 4 eigenvalue(s) larger than 1 in modulus 
+for 4 forward-looking variable(s)
+
+The rank condition is verified.
+
 
 MODEL SUMMARY
 
-  Number of variables:         12
+  Number of variables:         11
   Number of stochastic shocks: 2
   Number of state variables:   3
   Number of jumpers:           4
-  Number of static variables:  6
+  Number of static variables:  5
 
 
 MATRIX OF COVARIANCE OF EXOGENOUS SHOCKS
@@ -41,10 +58,10 @@ epsz         1.000000  0.000000
 epsxxi       0.000000  1.000000
 
 POLICY AND TRANSITION FUNCTIONS
-                                  y               c               inv             n               w               mmu             z               d     
-Constant                    1.095522        0.821642        0.273881        0.300000        2.095104        0.103551        1.000000        0.193111
+                                     y               c               inv             n               w               mmu             z               d  
+Constant                    1.095522        0.821642        0.273881        0.300000        2.095104        0.103551               0        0.193111
 k(-1)                       0.092697        0.140724       -0.048026        0.024260        0.431440       -0.181242               0       -0.039535
-xxi(-1)                    10.088499       15.502043       -5.413544        4.359304       52.576072      -27.267197       -0.091000       -9.403973
+xxi(-1)                     1.008850        1.550204       -0.541354        0.435930        5.257607       -2.726720       -0.009100       -0.940397
 z(-1)                       0.077904       -0.349471        0.427375       -0.409964       -2.118139        2.195091        0.945700        1.144887
 epsz                        0.000212       -0.001906        0.002118       -0.002019       -0.010903        0.010871        0.004500        0.005594
 epsxxi                      0.010194        0.015618       -0.005424        0.004362        0.052879       -0.027318               0       -0.009384
@@ -59,7 +76,7 @@ inv          0.273819   0.007598   0.000058   0.013226  -0.027958
 n            0.300103   0.006258   0.000039  -0.012808  -0.022380
 w            2.095243   0.070594   0.004983  -0.012106  -0.031421
 mmu          0.103078   0.038301   0.001467   0.012847  -0.025636
-z            0.999745   0.005887   0.000035   0.015162   0.016597
+z           -0.000255   0.005887   0.000035   0.015162   0.016597
 d            0.192786   0.014234   0.000203   0.012765  -0.016191
 
 
@@ -87,7 +104,4 @@ w           0.7085  0.4633  0.2630  0.1043 -0.0207
 mmu         0.7085  0.4637  0.2633  0.1045 -0.0203
 z           0.7135  0.4690  0.2684  0.1083 -0.0164
 d           0.7116  0.4687  0.2689  0.1098 -0.0153
-
-Saving to: /Users/linxichen/Dropbox/jermanquadrini/code/linxi/jq_201405231121_simple_stoch_nobond_noadj_stayclose/Dynare/matlab.mat
-
-Total computing time : 0h00m06s
+Total computing time : 0h00m07s

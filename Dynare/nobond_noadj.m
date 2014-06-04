@@ -48,9 +48,6 @@ M_.endo_names_long = char(M_.endo_names_long, 'inv');
 M_.endo_names = char(M_.endo_names, 'mk');
 M_.endo_names_tex = char(M_.endo_names_tex, 'mk');
 M_.endo_names_long = char(M_.endo_names_long, 'mk');
-M_.endo_names = char(M_.endo_names, 'yovern');
-M_.endo_names_tex = char(M_.endo_names_tex, 'yovern');
-M_.endo_names_long = char(M_.endo_names_long, 'yovern');
 M_.endo_names = char(M_.endo_names, 'z');
 M_.endo_names_tex = char(M_.endo_names_tex, 'z');
 M_.endo_names_long = char(M_.endo_names_long, 'z');
@@ -95,9 +92,9 @@ M_.param_names_tex = char(M_.param_names_tex, 'xxibar');
 M_.param_names_long = char(M_.param_names_long, 'xxibar');
 M_.exo_det_nbr = 0;
 M_.exo_nbr = 2;
-M_.endo_nbr = 12;
+M_.endo_nbr = 11;
 M_.param_nbr = 12;
-M_.orig_endo_nbr = 12;
+M_.orig_endo_nbr = 11;
 M_.aux_vars = [];
 M_.Sigma_e = zeros(2, 2);
 M_.Correlation_matrix = eye(2, 2);
@@ -110,18 +107,17 @@ erase_compiled_function('nobond_noadj_static');
 erase_compiled_function('nobond_noadj_dynamic');
 M_.lead_lag_incidence = [
  0 4 0;
- 0 5 16;
- 0 6 17;
+ 0 5 15;
+ 0 6 16;
  0 7 0;
  1 8 0;
- 0 9 18;
+ 0 9 17;
  0 10 0;
  0 11 0;
  0 12 0;
- 0 13 0;
- 2 14 19;
- 3 15 0;]';
-M_.nstatic = 6;
+ 2 13 18;
+ 3 14 0;]';
+M_.nstatic = 5;
 M_.nfwrd   = 3;
 M_.npred   = 2;
 M_.nboth   = 1;
@@ -136,13 +132,13 @@ M_.maximum_lag = 1;
 M_.maximum_lead = 1;
 M_.maximum_endo_lag = 1;
 M_.maximum_endo_lead = 1;
-oo_.steady_state = zeros(12, 1);
+oo_.steady_state = zeros(11, 1);
 M_.maximum_exo_lag = 0;
 M_.maximum_exo_lead = 0;
 oo_.exo_steady_state = zeros(2, 1);
 M_.params = NaN(12, 1);
 M_.NNZDerivatives = zeros(3, 1);
-M_.NNZDerivatives(1) = 51;
+M_.NNZDerivatives(1) = 48;
 M_.NNZDerivatives(2) = -1;
 M_.NNZDerivatives(3) = -1;
 cd ../MATLAB;
@@ -153,6 +149,7 @@ deep_parameter_name = M_.param_names(i,:);
 eval(['M_.params(i)  = ' deep_parameter_name ' ;'])
 end
 steady;
+oo_.dr.eigval = check(M_,options_,oo_);
 %
 % SHOCKS instructions
 %
@@ -176,7 +173,6 @@ var_list_ = char(var_list_, 'mmu');
 var_list_ = char(var_list_, 'z');
 var_list_ = char(var_list_, 'd');
 info = stoch_simul(var_list_);
-save
 save('nobond_noadj_results.mat', 'oo_', 'M_', 'options_');
 if exist('estim_params_', 'var') == 1
   save('nobond_noadj_results.mat', 'estim_params_', '-append');

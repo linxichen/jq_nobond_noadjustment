@@ -143,6 +143,67 @@ struct para_struct {
 	};
 };
 
+void guess_linear(host_vector<double> K, host_vector<double> Z, host_vector<double> XXI, host_vector<double> V1, para_struct para, double factor) {
+	// Initialize matrices
+	int n = 9; int n_jump = 8; int n_shock = 2;
+	host_vector<double> A(n*n,0); 
+	host_vector<double> B(n*n,0); 
+	host_vector<double> C(n*n_shock,0); 
+	host_vector<double> rrho(n_shock*n_shock,0);
+   	host_vector<double> Pphi(n*(n-n_jump+n_shock),0);
+
+	// Fill in matrices
+	A[0+0*n] = 1; 
+	B[0+0*n] = 1-para.ddelta; 
+	B[0+6*n] = 1; 
+	B[0+1*n] = -1;
+
+	A[1+8*n] = para.bbeta; 
+	B[1+1*n] = -(1-para.mmuss*para.xxibar)/(para.css*para.css); 
+	B[1+5*n] = -para.xxibar/para.css; 
+	C[1+1*n] = -para.mmuss*para.xxibar/para.css;
+
+	B[2+1*n] = -pow(para.css,-2)*(1-para.ddelta+(1-para.mmuss)*para.ttheta*para.yss/para.kss); 
+	B[2+5*n] = -para.ttheta*para.yss/(para.css*para.kss); 
+	B[2+6*n] = (1-para.mmuss)*para.ttheta/(para.css*para.kss); 
+	B[2+0*n] = -(1-para.mmuss)*para.ttheta*para.yss*pow(para.kss,-2)/para.css;
+	B[2+8*n] = -1;
+
+	A[3+0*n] = para.xxibar;
+	B[3+6*n] = 1;
+	B[3+1*n] = -para.xxibar*para.kss;
+
+	B[4+5*n] = (para.ttheta-1)*para.yss/para.nss;
+	B[4+6*n] = (1-para.ttheta)*(1-para.mmuss)/para.nss;
+	B[4+2*n] = -(1-para.ttheta)*(1-para.mmuss)*para.yss/(para.nss*para.nss);
+	B[4+3*n] = -1;
+
+	B[5+1*n] = para.aalpha/(1-para.nss);
+	B[5+2*n] = para.aalpha*para.css/((1-para.nss)*(1-para.nss));
+	B[5+3*n] = -1;
+
+	B[6+3*n] = para.nss;
+	B[6+2*n] = para.wss;
+	B[6+4*n] = 1;
+	B[6+1*n] = -1;
+
+	C[7+0*n] = para.yss;
+	B[7+0*n] = para.ttheta*para.yss/para.kss;
+	B[7+2*n] = (1-para.ttheta)*para.yss/para.nss;
+	B[7+6*n] = -1;
+
+	A[8+0*n] = 1;
+	B[8+7*n] = 1;
+	B[8+0*n] = 1-para.ddelta;
+
+	for (int i=0; i< n_shock*n_shock; i++) {
+		rrho[i] = para.A[i];
+	};
+
+	// Time to the linear solver
+	linearQZ(A.data(),B.data(),C.data(),rrho.data(),n,n_jump,n_shock,Pphi.data());
+};
+
 struct case1_hour {
 	// Data Member are const coefficents and some model parameters
 	double c0, c1, c_oneminusttheta, c_twominusttheta;
@@ -413,8 +474,6 @@ struct myDist {
 
 int main()
 {
-	test();
-
 	// Initialize Parameters
 	para_struct para;
 
@@ -495,18 +554,15 @@ int main()
 	// Create capital grid
 	double minK = 1/para.kwidth*para.kss;
 	double maxK = para.kwidth*para.kss;
-	double step = (maxK-minK)/double(para.nk-1);
-	for (int i_k = 0; i_k < para.nk; i_k++) {
-		h_K[i_k] = minK + step*double(i_k);
-	};
+	linspace(minK,maxK,para.nk,raw_pointer_cast(h_K.data()));
 	save_vec(h_K,para.nk,"Kgrid.csv");
 
 	// Create shocks grids
 	host_vector<double> h_shockgrids(2*para.nz);
 	double* h_shockgrids_ptr = raw_pointer_cast(h_shockgrids.data());
 	double* h_P_ptr = raw_pointer_cast(h_P.data());
-	gridgen_fptr chebyspace_fptr = &chebyspace; // select linspace as grid gen
-	tauchen_vec(2,para.nz,4,para.A,para.Ssigma_e,h_shockgrids_ptr,h_P_ptr,chebyspace_fptr);
+	gridgen_fptr linspace_fptr = &linspace; // select linspace as grid gen
+	tauchen_vec(2,para.nz,3,para.A,para.Ssigma_e,h_shockgrids_ptr,h_P_ptr,linspace_fptr);
 	for (int i_shock = 0; i_shock < para.nz; i_shock++) {
 		h_Z[i_shock] = para.zbar*exp(h_shockgrids[i_shock+0*para.nz]);
 		h_XXI[i_shock] = para.xxibar*exp(h_shockgrids[i_shock+1*para.nz]);
@@ -516,6 +572,9 @@ int main()
 	save_vec(h_Z,"Zgrid.csv");
 	save_vec(h_XXI,"XXIgrid.csv");
 	save_vec(h_P,"Pcuda.csv");
+
+	// Obtain initial guess from linear solution
+	guess_linear(h_K, h_Z, h_XXI, h_V1_low, para, 0.9) ;
 
 	// Copy to the device
 	device_vector<double> d_K = h_K;

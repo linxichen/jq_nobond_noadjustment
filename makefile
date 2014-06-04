@@ -27,7 +27,7 @@ CXX       = g++
 MD		  = markdown
 
 # Standard optimization flags to C++ compiler
-CXXFLAGS  = -O3 -I$(ICUDA) -I$(ICUDA_MAC) -I$(ICPP_MAC) -I$(ILAPACK)
+CXXFLAGS  = -O3 -I$(ICUDA) -I$(ICUDA_MAC) -I$(ICPP_MAC) -I$(ILAPACK) -DHAVE_LAPACK_CONFIG_H -DLAPACK_COMPLEX_CPP
 
 # Add CUDA libraries to C++ compiler linking process
 LDFLAGS  += -lcublas -lcurand -lcudart -L$(LCUDA) -L$(LCUDA_MAC) -L$(LCPP_MAC) -lnlopt -larmadillo -lopenblas -llapacke -llapack

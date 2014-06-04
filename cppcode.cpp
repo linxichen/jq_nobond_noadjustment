@@ -1,4 +1,5 @@
 #include <random>
+#include <complex>
 #include <iostream>
 #include <thrust/host_vector.h>
 #include "armadillo"
@@ -215,43 +216,42 @@ void findprojector(double* X_ptr, int nrows, int ncols, double * P_ptr) {
 
 };
 
-lapack_logical qzdivide(const double* real_alpha, const double* imagine_alpha, const double* real_beta) {
-	// Generalised eigenvalues are a/c + b/c*i
-	double a = * real_alpha;
-	double b = * imagine_alpha;
-	double c = * real_beta;
+lapack_logical qzdivide(const complex<double>* alpha, const complex<double>* beta) {
+	// Generalised eigenvalues are a/b
+	complex<double> a = * alpha;
+	complex<double> b = * beta;
+	complex<double> zero(0,0);
 
 	// Determined whether eigenvalues are within unit circle, assuming not all a,b,c are zeros.
 	// We want the >1 on upper left, because we will invert it later.
-	if (c==0) {
+	if (b==zero) {
 		return true;
-	} else if (sqrt( a*a/(c*c) + b*b/(c*c)  )<1) {
+	} else if (abs(a/b)<1) {
 		return false;
 	} else {
 		return true;
 	};
 };
 
-int qzdecomp (mat &A, mat &B, mat &Q, mat &Z) {
+int qzdecomp (cx_mat &A, cx_mat &B, cx_mat &Q, cx_mat &Z) {
 // Purpose:
 // 	Compute QZ decomposition for a pair nonsymmetric matrice (A,B).
-// 	A = Q*S*Z', B = Q*T*Z'
+// 	A = Q'*S*Z, B = Q'*T*Z
 // 	where S, T is stored in A, B when done.
 // 	The decomposition is ordered such that explosive eigenvalues are placed in lower right of inv(S)*T;
 // 	Returns the number of unstable roots
 
 	// Preparations
 	int n_selected;
-	vec alphar(A.n_rows);
-	vec alphai(A.n_rows);
-	vec beta(B.n_rows);
+	cx_vec alpha(A.n_rows);
+	cx_vec beta(B.n_rows);
 	lapack_int info;	// stores the exit information 
-	mat A_old = A;
-	mat B_old = B;
-	LAPACK_D_SELECT3 selctg = qzdivide; 
+	LAPACK_Z_SELECT2 selctg = qzdivide; 
+	A.print("Inputted A matrix:");
+	B.print("Inputted B matrix:");
 
 	// Call LAPACK
-	info = LAPACKE_dgges(
+	info = LAPACKE_zgges(
 			LAPACK_COL_MAJOR,	// indicate we use column major
 			'V',				// ... and compute left schur vector 
 			'V',				// ... and compute right schur vector
@@ -263,8 +263,7 @@ int qzdecomp (mat &A, mat &B, mat &Q, mat &Z) {
 			B.memptr(),			// array that stores B
 			B.n_rows,			// rows of B
 			&n_selected,		// output the # of eigenvalues 
-			alphar.memptr(),	// stores aux vectors
-			alphai.memptr(),	// stores aux vector
+			alpha.memptr(),	// stores aux vectors
 			beta.memptr(),		// stores aux vector
 			Q.memptr(),			// stores Q
 			A.n_rows,
@@ -281,29 +280,27 @@ int qzdecomp (mat &A, mat &B, mat &Q, mat &Z) {
 	B.print("T = ");
 	Q.print("Q = ");
 	Z.print("Z = ");
+	printf("The %i ordered eigenvalues have the following norms: \n", A.n_rows);
+	complex<double> zero(0,0);
+	for (int i = 0; i<A.n_rows; i++) {
+		if (beta(i) != zero) {
+			printf("[#%i] eigenvalue has norm: %f\n", i+1, abs(alpha(i)/beta(i)) );
+		} else {
+			printf("#[%i] eigenvalue has norm: Inf\n", i+1  );
+		};
+
+	};
+
 
 	// Check accuray
-	mat Atilde = trans(Q)*A*Z;
+	cx_mat Atilde = trans(Q)*A*Z;
 	Atilde.print("Atilde = ");
-	mat wewant = inv(A)*B;
-	wewant.print("We want this matrix on RHS:");
+	cx_mat Btilde = trans(Q)*A*Z;
+	Btilde.print("Btilde = ");
+
 	
 	// Compute the number of unstable roots (in lower right of inv(S)*T)
 	return A.n_rows - n_selected;
-};
-
-void test() {
-	mat A(3,3);
-	A << 4 << 2 << 9 << endr
-	  << 1 << 2 << 7 << endr
-	  << 9 << 3 << 0 << endr;
-	mat B(3,3);
-	B << 7 << 6 << 8 << endr
-	  << 2 << 5 << 1 << endr
-	  << 8 << 4 << 1 << endr;
-	mat Q(3,3);
-	mat Z(3,3);
-	qzdecomp(A,B,Q,Z);
 };
 
 void linearQZ(double* A_ptr, double* B_ptr, double* C_ptr, double* rrho_ptr, int n, int n_jump, int n_shock, double* Pphi_ptr) {
@@ -312,20 +309,25 @@ void linearQZ(double* A_ptr, double* B_ptr, double* C_ptr, double* rrho_ptr, int
 // 	A* E_t y_t+1 = B* y_t + C * z_t and
 // 	z_t = rrho* z_t-1 + G * epsilon_t
 // 	y_t is the n-by-1 vector of endogenuous variables which contains n_predeter
-// 	predetermined (jump) variables. A, B, rrho, and C are n-by-n
+// 	predetermined (jump) variables. A, B are n-by-n. C is n-by-n_shock, rrho is n_shock-by-n_shock.
+// 	Pphi is n-by-(n-n_jump+n_shock)
 
-	// Wrap armadillo mat around raw arrays
-	mat A(A_ptr,n,n,false,true) ;
-	mat B(B_ptr,n,n,false,true) ;
-	mat C(C_ptr,n,n_shock,false,true) ;
-	mat rrho(rrho_ptr,n_shock,n_shock,false,true) ;
+	// Wrap armadillo mat around raw arrays and convert to complex matrices.
+	mat A_real(A_ptr,n,n) ;
+	mat B_real(B_ptr,n,n) ;
+	mat C_real(C_ptr,n,n_shock) ;
+	mat rrho_real(rrho_ptr,n_shock,n_shock) ;
+	cx_mat A = conv_to<cx_mat>::from(A_real); 
+	cx_mat B = conv_to<cx_mat>::from(B_real); 
+	cx_mat C = conv_to<cx_mat>::from(C_real); 
+	cx_mat rrho = conv_to<cx_mat>::from(rrho_real); 
 	
 	// Call QZ decomposition
-	mat Llambda = A;
-	mat Oomega = B;
-	mat Q(n,n);
-	mat Z(n,n);
-	int n_unstable = qzdecomp(Llambda,Oomega,Q,Z);
+	cx_mat S = A;
+	cx_mat T = B;
+	cx_mat Q(n,n);
+	cx_mat Z(n,n);
+	int n_unstable = qzdecomp(S,T,Q,Z);
 
 	// Check counting rule
 	if (n_unstable > n_jump) {
@@ -337,30 +339,41 @@ void linearQZ(double* A_ptr, double* B_ptr, double* C_ptr, double* rrho_ptr, int
 	};
 
 	// Find solution.
-	mat Ggamma = inv(Llambda)*Oomega;
-	mat Ppsi = inv(Llambda)*Q*C;
-	mat Ggamma11 = Ggamma(span(0,n-n_jump-1),span(0,n-n_jump-1));
-	mat Ggamma12 = Ggamma(span(0,n-n_jump-1),span(n-n_jump,n-1));
-	mat Ggamma21 = Ggamma(span(n-n_jump,n-1),span(0,n-n_jump-1));
-	mat Ggamma22 = Ggamma(span(n-n_jump,n-1),span(n-n_jump,n-1));
-	mat Z11 = Z(span(0,n-n_jump-1),span(0,n-n_jump-1));
-	mat Z12 = Z(span(0,n-n_jump-1),span(n-n_jump,n-1));
-	mat Z21 = Z(span(n-n_jump,n-1),span(0,n-n_jump-1));
-	mat Z22 = Z(span(n-n_jump,n-1),span(n-n_jump,n-1));
-	mat Ppsi1 = Ppsi(span(0,n-n_jump-1),span::all);
-	mat Ppsi2 = Ppsi(span(n-n_jump,n-1),span::all);
-	vec M_vec = inv( eye(n_shock*n_jump,n_shock*n_jump)-kron(trans(rrho),inv(Ggamma22))  )*vectorise(Ppsi2);
-	mat M = reshape(M_vec,n_jump,n_shock);
-	mat Pphi_cstar_z = -inv(Ggamma22)*M;	// Finally get c*_t = Pphi_cstrt_z * z_t
-	mat Pphi_c_k = -inv(Z22)*Z21;
-	mat Pphi_c_z = inv(Z22)*Pphi_cstar_z;
-	mat Pphi_k_k = inv(Z11+Z12*Pphi_c_k)*Ggamma11*(Z11+Z12*Pphi_c_k);
-	mat Pphi_k_z = inv(Z11+Z12*Pphi_c_k)*(Ggamma11*Z12*Pphi_c_z+Ggamma12*Pphi_cstar_z+Ppsi1-Z12*Pphi_c_z*rrho);
-	mat Pphi = join_cols( join_rows(Pphi_k_k,Pphi_k_z), join_rows(Pphi_c_k,Pphi_c_z)  );
+	cx_mat Ppsi = Q*C;
+	cx_mat S11 = S(span(0,n-n_jump-1),span(0,n-n_jump-1));
+	cx_mat S12 = S(span(0,n-n_jump-1),span(n-n_jump,n-1));
+	cx_mat S21 = S(span(n-n_jump,n-1),span(0,n-n_jump-1));
+	cx_mat S22 = S(span(n-n_jump,n-1),span(n-n_jump,n-1));
+	
+	cx_mat T11 = T(span(0,n-n_jump-1),span(0,n-n_jump-1));
+	cx_mat T12 = T(span(0,n-n_jump-1),span(n-n_jump,n-1));
+	cx_mat T21 = T(span(n-n_jump,n-1),span(0,n-n_jump-1));
+	cx_mat T22 = T(span(n-n_jump,n-1),span(n-n_jump,n-1));
+
+	cx_mat Z11 = Z(span(0,n-n_jump-1),span(0,n-n_jump-1));
+	cx_mat Z12 = Z(span(0,n-n_jump-1),span(n-n_jump,n-1));
+	cx_mat Z21 = Z(span(n-n_jump,n-1),span(0,n-n_jump-1));
+	cx_mat Z22 = Z(span(n-n_jump,n-1),span(n-n_jump,n-1));
+
+	cx_mat want = inv(Z22)*S22;
+	cx_vec eigval = eig_gen(want);
+	eigval.print("Eigenvalues should all be within unit circle:");
+
+	cx_mat Ppsi1 = Ppsi(span(0,n-n_jump-1),span::all);
+	cx_mat Ppsi2 = Ppsi(span(n-n_jump,n-1),span::all);
+
+	// vec M_vec = inv( eye(n_shock*n_jump,n_shock*n_jump)-kron(trans(rrho),inv(Ggamma22))  )*vectorise(Ppsi2);
+	// mat M = reshape(M_vec,n_jump,n_shock);
+	// mat Pphi_cstar_z = -inv(Ggamma22)*M;	// Finally get c*_t = Pphi_cstrt_z * z_t
+	// mat Pphi_c_k = -inv(Z22)*Z21;
+	// mat Pphi_c_z = inv(Z22)*Pphi_cstar_z;
+	// mat Pphi_k_k = inv(Z11+Z12*Pphi_c_k)*Ggamma11*(Z11+Z12*Pphi_c_k);
+	// mat Pphi_k_z = inv(Z11+Z12*Pphi_c_k)*(Ggamma11*Z12*Pphi_c_z+Ggamma12*Pphi_cstar_z+Ppsi1-Z12*Pphi_c_z*rrho);
+	// mat Pphi = join_cols( join_rows(Pphi_k_k,Pphi_k_z), join_rows(Pphi_c_k,Pphi_c_z)  );
+	// Pphi.print("The solution matrix is: ");
 
 	// Output Pphi, the solution.
-	for (int i = 0; i < n*(n-n_jump+n_shock); i++) {
-		Pphi_ptr[i] = Pphi.memptr()[i];
-	};
-
+	// for (int i = 0; i < n*(n-n_jump+n_shock); i++) {
+	// 	Pphi_ptr[i] = Pphi.memptr()[i];
+	// };
 };

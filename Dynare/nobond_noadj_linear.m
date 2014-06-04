@@ -192,7 +192,6 @@ var_list_ = char(var_list_, 'mmu');
 var_list_ = char(var_list_, 'z');
 var_list_ = char(var_list_, 'd');
 info = stoch_simul(var_list_);
-save
 save('nobond_noadj_linear_results.mat', 'oo_', 'M_', 'options_');
 if exist('estim_params_', 'var') == 1
   save('nobond_noadj_linear_results.mat', 'estim_params_', '-append');

@@ -13,7 +13,6 @@ mmu         // variable 6
 y           // variable 7
 inv         // variable 8
 mk			// variable 9
-yovern
 
 // exogenous variables
 z			// variable 14
@@ -55,11 +54,11 @@ end
 // 5. Steady State
 //----------------------------------------------------------------
 steady_state_model;
-    xxi = xxibar;
-    z = zbar;
-    kovern = xxi^(1/(ttheta-1));
+    xxi = 0;
+    z = 0;
+    kovern = xxibar^(1/(ttheta-1));
     covern = kovern^ttheta - ddelta*kovern;
-    mmu = 1 - (bbeta*(1-ddelta)-1+xxi)/(xxi*(1-bbeta*ttheta));
+    mmu = 1 - (bbeta*(1-ddelta)-1+xxibar)/(xxibar*(1-bbeta*ttheta));
     G = (1-mmu)*(1-ttheta)*kovern^ttheta / (aalpha*covern);
     n = G/(1+G);
     c = covern*n;
@@ -67,11 +66,11 @@ steady_state_model;
     k = kovern*n;
     d = c - w*n;
 	inv = ddelta*k;
-    mk = (c^-1)*( (1-ddelta) + (1-mmu)*ttheta*z*k^(ttheta-1)*n^(1-ttheta) ) ;
-	y = z*k^ttheta*n^(1-ttheta);
-    yovern = y/n;
+    mk = (c^-1)*( (1-ddelta) + (1-mmu)*ttheta*zbar*k^(ttheta-1)*n^(1-ttheta) ) ;
+	y = zbar*k^ttheta*n^(1-ttheta);
 end;
 steady;
+check;
 
 
 //----------------------------------------------------------------
@@ -83,38 +82,36 @@ model;
 	w*n + d - c = 0;
 
 	//2. Labor Demand
-	(1-mmu)*(1-ttheta)*z*(k(-1)^ttheta)*n^(-ttheta) = w;
+	(1-mmu)*(1-ttheta)*zbar*exp(z)*(k(-1)^ttheta)*n^(-ttheta) = w;
 
 	//3. Labor Supply
 	w = aalpha*c^(1)/(1-n);
 
 	//4. Capital Demand
-	( 1-mmu*xxi )*c^(-1)
-	= bbeta*(c(+1)^(-1))*( 1-ddelta+(1-mmu(+1))*z(+1)*ttheta*k^(ttheta-1)*n(+1)^(1-ttheta) );
+	( 1-mmu*xxibar*exp(xxi) )*c^(-1)
+	= bbeta*(c(+1)^(-1))*( 1-ddelta+(1-mmu(+1))*zbar*exp(z(+1))*ttheta*k^(ttheta-1)*n(+1)^(1-ttheta) );
 
 	// 5. Resource Constraint 
 	(1-ddelta)*k(-1) + y - k - c = 0;
 
 	// 6. Financial Constraint
-	xxi*( k ) =  y;
+	xxibar*exp(xxi)*( k ) =  y;
 
 	// 7. Output
-	y = z*(k(-1))^(ttheta)*n^(1-ttheta);
+	y = zbar*exp(z)*(k(-1))^(ttheta)*n^(1-ttheta);
 
 	// 8. Investment
 	inv = k-(1-ddelta)*k(-1);
 
 	// 9. MK Definition
-	mk = (c^(-1))*( (1-ddelta)+(1-mmu)*z*ttheta*k(-1)^(ttheta-1)*n^(1-ttheta) );
+	mk = (c^(-1))*( (1-ddelta)+(1-mmu)*zbar*exp(z)*ttheta*k(-1)^(ttheta-1)*n^(1-ttheta) );
 
 	// 10
-	(z/zbar) = (z(-1)/zbar)^(rrhozz)*(xxi(-1)/xxibar)^(rrhozxxi)*exp(ssigmaepsz*epsz);
+	z = (rrhozz)*z(-1) + (rrhozxxi)*xxi(-1) + (ssigmaepsz*epsz);
 
 	// 11
-	(xxi/xxibar)= (xxi(-1)/xxibar)^(rrhoxxixxi)*(z(-1)/zbar)^(rrhoxxiz)*exp(ssigmaepsxxi*epsxxi);
+	xxi = (rrhoxxixxi)*xxi(-1) + (rrhoxxiz)*z(-1) + (ssigmaepsxxi*epsxxi);
 
-    // 12
-    yovern = y/n;
 end;
 
 //----------------------------------------------------------------
