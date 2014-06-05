@@ -149,5 +149,5 @@ var epsxxi;
 stderr 1;
 end;
 
-stoch_simul(order = 1,periods=100000,irf=40,drop=2000, hp_filter=1600) y c inv n w mmu z d; % compute polices up to 1st order
+stoch_simul(order = 1,periods=100000,irf=40,drop=2000, hp_filter=1600) k y c inv n w mmu z d mk; % compute polices up to 1st order
 // stoch_simul(hp_filter=1600,order = 1,periods=100000,irf=40,drop=2000,loglinear) y c inv n w z d; % compute polices up to 1st order

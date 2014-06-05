@@ -217,19 +217,19 @@ void findprojector(double* X_ptr, int nrows, int ncols, double * P_ptr) {
 };
 
 lapack_logical qzdivide(const complex<double>* alpha, const complex<double>* beta) {
-	// Generalised eigenvalues are a/b
+	// As in Sims and Klein, our Generalised eigenvalues are defined as b/a 
 	complex<double> a = * alpha;
 	complex<double> b = * beta;
 	complex<double> zero(0,0);
 
 	// Determined whether eigenvalues are within unit circle, assuming not all a,b,c are zeros.
 	// We want the >1 on upper left, because we will invert it later.
-	if (b==zero) {
-		return true;
-	} else if (abs(a/b)<1) {
+	if (a==zero) {
 		return false;
-	} else {
+	} else if (abs(b/a)<1) {
 		return true;
+	} else {
+		return false;
 	};
 };
 
@@ -271,9 +271,8 @@ int qzdecomp (cx_mat &A, cx_mat &B, cx_mat &Q, cx_mat &Z) {
 			B.n_rows
 			);
 	
-	// Transpose Q and Z, consistent with Juan's notation.
+	// Transpose Q consistent with Klein's notation.
 	Q = trans(Q);
-	Z = trans(Z);
 
 	// Print and See
 	A.print("S = ");
@@ -291,11 +290,10 @@ int qzdecomp (cx_mat &A, cx_mat &B, cx_mat &Q, cx_mat &Z) {
 
 	};
 
-
 	// Check accuray
-	cx_mat Atilde = trans(Q)*A*Z;
+	cx_mat Atilde = trans(Q)*A*trans(Z);
 	Atilde.print("Atilde = ");
-	cx_mat Btilde = trans(Q)*A*Z;
+	cx_mat Btilde = trans(Q)*B*trans(Z);
 	Btilde.print("Btilde = ");
 
 	
@@ -339,7 +337,6 @@ void linearQZ(double* A_ptr, double* B_ptr, double* C_ptr, double* rrho_ptr, int
 	};
 
 	// Find solution.
-	cx_mat Ppsi = Q*C;
 	cx_mat S11 = S(span(0,n-n_jump-1),span(0,n-n_jump-1));
 	cx_mat S12 = S(span(0,n-n_jump-1),span(n-n_jump,n-1));
 	cx_mat S21 = S(span(n-n_jump,n-1),span(0,n-n_jump-1));
@@ -355,25 +352,24 @@ void linearQZ(double* A_ptr, double* B_ptr, double* C_ptr, double* rrho_ptr, int
 	cx_mat Z21 = Z(span(n-n_jump,n-1),span(0,n-n_jump-1));
 	cx_mat Z22 = Z(span(n-n_jump,n-1),span(n-n_jump,n-1));
 
-	cx_mat want = inv(Z22)*S22;
-	cx_vec eigval = eig_gen(want);
-	eigval.print("Eigenvalues should all be within unit circle:");
+	cx_mat Q1 = Q(span(0,n-n_jump-1),span::all);
+	cx_mat Q2 = Q(span(n-n_jump,n-1),span::all);
 
-	cx_mat Ppsi1 = Ppsi(span(0,n-n_jump-1),span::all);
-	cx_mat Ppsi2 = Ppsi(span(n-n_jump,n-1),span::all);
-
-	// vec M_vec = inv( eye(n_shock*n_jump,n_shock*n_jump)-kron(trans(rrho),inv(Ggamma22))  )*vectorise(Ppsi2);
-	// mat M = reshape(M_vec,n_jump,n_shock);
-	// mat Pphi_cstar_z = -inv(Ggamma22)*M;	// Finally get c*_t = Pphi_cstrt_z * z_t
-	// mat Pphi_c_k = -inv(Z22)*Z21;
-	// mat Pphi_c_z = inv(Z22)*Pphi_cstar_z;
-	// mat Pphi_k_k = inv(Z11+Z12*Pphi_c_k)*Ggamma11*(Z11+Z12*Pphi_c_k);
-	// mat Pphi_k_z = inv(Z11+Z12*Pphi_c_k)*(Ggamma11*Z12*Pphi_c_z+Ggamma12*Pphi_cstar_z+Ppsi1-Z12*Pphi_c_z*rrho);
-	// mat Pphi = join_cols( join_rows(Pphi_k_k,Pphi_k_z), join_rows(Pphi_c_k,Pphi_c_z)  );
-	// Pphi.print("The solution matrix is: ");
+	// From now on just copying formulas in Klein 2000
+	cx_vec M_vec = inv( kron(trans(rrho),S22)-kron(eye(n_shock,n_shock),T22) ) *vectorise(Q2*C);
+	cx_mat M = reshape(M_vec,n_jump,n_shock);
+	cx_mat N = (Z22-Z21*inv(Z11)*Z12)*M;
+	cx_mat L = -Z11*inv(S11)*T11*inv(Z11)*Z12*M + Z11*inv(S11)*(T12*M-S12*M*rrho+Q1*C) + Z12*M*rrho;
+	cx_mat Pphi_c_k = Z21*inv(Z11);
+	cx_mat Pphi_c_z = N; 
+	cx_mat Pphi_k_k = Z11*inv(S11)*T11*inv(Z11); 
+	cx_mat Pphi_k_z = L; 
+	cx_mat Pphi_cx = join_cols( join_rows(Pphi_k_k,Pphi_k_z), join_rows(Pphi_c_k,Pphi_c_z)  );
+	mat Pphi = conv_to<mat>::from(Pphi_cx);
+	Pphi.print("The solution matrix is: ");
 
 	// Output Pphi, the solution.
-	// for (int i = 0; i < n*(n-n_jump+n_shock); i++) {
-	// 	Pphi_ptr[i] = Pphi.memptr()[i];
-	// };
+	for (int i = 0; i < n*(n-n_jump+n_shock); i++) {
+		Pphi_ptr[i] = Pphi.memptr()[i];
+	};
 };

@@ -183,7 +183,8 @@ options_.irf = 40;
 options_.order = 1;
 options_.periods = 100000;
 var_list_=[];
-var_list_ = 'y';
+var_list_ = 'k';
+var_list_ = char(var_list_, 'y');
 var_list_ = char(var_list_, 'c');
 var_list_ = char(var_list_, 'inv');
 var_list_ = char(var_list_, 'n');
@@ -191,6 +192,7 @@ var_list_ = char(var_list_, 'w');
 var_list_ = char(var_list_, 'mmu');
 var_list_ = char(var_list_, 'z');
 var_list_ = char(var_list_, 'd');
+var_list_ = char(var_list_, 'mk');
 info = stoch_simul(var_list_);
 save('nobond_noadj_linear_results.mat', 'oo_', 'M_', 'options_');
 if exist('estim_params_', 'var') == 1

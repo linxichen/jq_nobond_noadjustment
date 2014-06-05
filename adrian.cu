@@ -153,48 +153,59 @@ void guess_linear(host_vector<double> K, host_vector<double> Z, host_vector<doub
    	host_vector<double> Pphi(n*(n-n_jump+n_shock),0);
 
 	// Fill in matrices
-	A[0+0*n] = 1; 
-	B[0+0*n] = 1-para.ddelta; 
-	B[0+6*n] = 1; 
+
+
+	// HH Budget. Correct.
+	B[0+3*n] = para.nss;
+	B[0+2*n] = para.wss;
+	B[0+4*n] = 1;
 	B[0+1*n] = -1;
 
-	A[1+8*n] = para.bbeta; 
-	B[1+1*n] = -(1-para.mmuss*para.xxibar)/(para.css*para.css); 
-	B[1+5*n] = -para.xxibar/para.css; 
-	C[1+1*n] = -para.mmuss*para.xxibar/para.css;
+	// Labor Demand. Correct
+	B[1+5*n] = (para.ttheta-1)*para.yss/para.nss;
+	B[1+6*n] = (1-para.ttheta)*(1-para.mmuss)/para.nss;
+	B[1+2*n] = -(1-para.ttheta)*(1-para.mmuss)*para.yss/(para.nss*para.nss);
+	B[1+3*n] = -1;
 
-	B[2+1*n] = -pow(para.css,-2)*(1-para.ddelta+(1-para.mmuss)*para.ttheta*para.yss/para.kss); 
-	B[2+5*n] = -para.ttheta*para.yss/(para.css*para.kss); 
-	B[2+6*n] = (1-para.mmuss)*para.ttheta/(para.css*para.kss); 
-	B[2+0*n] = -(1-para.mmuss)*para.ttheta*para.yss*pow(para.kss,-2)/para.css;
-	B[2+8*n] = -1;
+	// Labor Supply. Correct
+	B[2+1*n] = para.aalpha/(1-para.nss);
+	B[2+2*n] = para.aalpha*para.css/((1-para.nss)*(1-para.nss));
+	B[2+3*n] = -1;
 
-	A[3+0*n] = para.xxibar;
-	B[3+6*n] = 1;
-	B[3+1*n] = -para.xxibar*para.kss;
+	// Capital Demand. Correct.
+	A[3+8*n] = para.bbeta; 
+	B[3+1*n] = -(1-para.mmuss*para.xxibar)/(para.css*para.css); 
+	B[3+5*n] = -para.xxibar/para.css; 
+	C[3+1*n] = -para.mmuss*para.xxibar/para.css;
 
-	B[4+5*n] = (para.ttheta-1)*para.yss/para.nss;
-	B[4+6*n] = (1-para.ttheta)*(1-para.mmuss)/para.nss;
-	B[4+2*n] = -(1-para.ttheta)*(1-para.mmuss)*para.yss/(para.nss*para.nss);
-	B[4+3*n] = -1;
+	// Resource Constraint. Correct
+	A[4+0*n] = 1; 
+	B[4+0*n] = 1-para.ddelta; 
+	B[4+6*n] = 1; 
+	B[4+1*n] = -1;
 
-	B[5+1*n] = para.aalpha/(1-para.nss);
-	B[5+2*n] = para.aalpha*para.css/((1-para.nss)*(1-para.nss));
-	B[5+3*n] = -1;
+	// Financial Constraint. Fixed.
+	A[5+0*n] = para.xxibar;
+	B[5+6*n] = 1;
+	C[5+1*n] = -para.xxibar*para.kss;
 
-	B[6+3*n] = para.nss;
-	B[6+2*n] = para.wss;
-	B[6+4*n] = 1;
-	B[6+1*n] = -1;
+	// Output Definition. Correct
+	C[6+0*n] = para.yss;
+	B[6+0*n] = para.ttheta*para.yss/para.kss;
+	B[6+2*n] = (1-para.ttheta)*para.yss/para.nss;
+	B[6+6*n] = -1;
 
-	C[7+0*n] = para.yss;
-	B[7+0*n] = para.ttheta*para.yss/para.kss;
-	B[7+2*n] = (1-para.ttheta)*para.yss/para.nss;
-	B[7+6*n] = -1;
+	// Investment Definition. Correct
+	A[7+0*n] = 1;
+	B[7+7*n] = 1;
+	B[7+0*n] = 1-para.ddelta;
 
-	A[8+0*n] = 1;
-	B[8+7*n] = 1;
-	B[8+0*n] = 1-para.ddelta;
+	// MK defintion:
+	B[8+1*n] = -pow(para.css,-2)*(1-para.ddelta+(1-para.mmuss)*para.ttheta*para.yss/para.kss); 
+	B[8+5*n] = -para.ttheta*para.yss/(para.css*para.kss); 
+	B[8+6*n] = (1-para.mmuss)*para.ttheta/(para.css*para.kss); 
+	B[8+0*n] = -(1-para.mmuss)*para.ttheta*para.yss*pow(para.kss,-2)/para.css;
+	B[8+8*n] = -1;
 
 	for (int i=0; i< n_shock*n_shock; i++) {
 		rrho[i] = para.A[i];
