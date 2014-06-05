@@ -222,7 +222,6 @@ void guess_linear(const host_vector<double> K, const host_vector<double> Z, cons
 			};
 		};
 	};
-
 };
 
 struct case1_hour {
@@ -234,7 +233,7 @@ struct case1_hour {
 	__host__ __device__
 	case1_hour(double k, double z, double xxi, double m1, double zkttheta, para_struct _para) {
 		c0 = (1-para.ddelta)*k*m1 - 1 + para.ddelta;
-		c1 = (1-para.ddelta)*(1-k*m1+para.aalpha*para.ttheta/(1-para.ttheta));
+		c1 = (1-para.ddelta)*(1-k*m1-para.aalpha*para.ttheta/(1-para.ttheta));
 		c_oneminusttheta = (1-1/xxi)*m1*zkttheta;
 		c_twominusttheta = (1/xxi-1)*zkttheta*(m1+para.aalpha*para.ttheta/(k*(1-para.ttheta)));
 		para = _para;
@@ -265,7 +264,7 @@ struct case2_hour {
 		double ttheta = para.ttheta;
 		double aalpha = para.aalpha;
 		c0 = (1-ddelta)/m1;
-		c_oneminusttheta = (ttheta*zkttheta/(m1*k)+(1-ttheta)*zkttheta/aalpha);
+		c_oneminusttheta = zkttheta*(ttheta/(m1*k)+(1-ttheta)/aalpha);
 		c_minusttheta = -(1-ttheta)*zkttheta/aalpha;
 		para = _para;
 	};
@@ -279,7 +278,7 @@ struct case2_hour {
 	__host__ __device__
 	// The derivative of function
 	double prime(double n) {
-		return c0 + (1-para.ttheta)*c_oneminusttheta*pow(n,-para.ttheta) + (-para.ttheta)*c_minusttheta*pow(n,-para.ttheta-1);
+		return (1-para.ttheta)*c_oneminusttheta*pow(n,-para.ttheta) + (-para.ttheta)*c_minusttheta*pow(n,-para.ttheta-1);
 	};
 };
 
@@ -308,8 +307,13 @@ bool eureka(double k, double z, double xxi,
 	// d = c-w*n;
 	i_kplus = fit2grid(kplus,para.nk,K);
 	lhs1 = (1-xxi*mmu)/c;
-	// interp_low = EM1_low[i_kplus+para.nk*(i_z+i_xi*para.nz)] + (kplus-K[i_kplus])*(EM1_low[i_kplus+1+para.nk*(i_z+i_xi*para.nz)]-EM1_low[i_kplus+para.nk*(i_z+i_xi*para.nz)])/(K[i_kplus+1]-K[i_kplus]);
-	// interp_high = EM1_high[i_kplus+para.nk*(i_z+i_xi*para.nz)] + (kplus-K[i_kplus])*(EM1_high[i_kplus+1+para.nk*(i_z+i_xi*para.nz)]-EM1_high[i_kplus+para.nk*(i_z+i_xi*para.nz)])/(K[i_kplus+1]-K[i_kplus]);
+	// if (i_kplus < para.nk-1) {
+	// 	interp_low = EM1_low[i_kplus+para.nk*(i_z+i_xi*para.nz)] + (kplus-K[i_kplus])*(EM1_low[i_kplus+1+para.nk*(i_z+i_xi*para.nz)]-EM1_low[i_kplus+para.nk*(i_z+i_xi*para.nz)])/(K[i_kplus+1]-K[i_kplus]);
+	// 	interp_high = EM1_high[i_kplus+para.nk*(i_z+i_xi*para.nz)] + (kplus-K[i_kplus])*(EM1_high[i_kplus+1+para.nk*(i_z+i_xi*para.nz)]-EM1_high[i_kplus+para.nk*(i_z+i_xi*para.nz)])/(K[i_kplus+1]-K[i_kplus]);
+	// } else {
+	// 	interp_low = EM1_low[i_kplus+i_z*para.nk+i_xi*para.nz*para.nk];
+	// 	interp_high = EM1_high[i_kplus+i_z*para.nk+i_xi*para.nz*para.nk];
+	// };
 	interp_low = EM1_low[i_kplus+i_z*para.nk+i_xi*para.nz*para.nk];
 	interp_high = EM1_high[i_kplus+i_z*para.nk+i_xi*para.nz*para.nk];
 	
@@ -332,8 +336,13 @@ bool eureka(double k, double z, double xxi,
 	w = (1-para.ttheta)*Y/n;
 	lhs1 = (1-xxi*mmu)/c;
 	i_kplus = fit2grid(kplus,para.nk,K);
-	// interp_low = EM1_low[i_kplus+para.nk*(i_z+i_xi*para.nz)] + (kplus-K[i_kplus])*(EM1_low[i_kplus+1+para.nk*(i_z+i_xi*para.nz)]-EM1_low[i_kplus+para.nk*(i_z+i_xi*para.nz)])/(K[i_kplus+1]-K[i_kplus]);
-	// interp_high = EM1_high[i_kplus+para.nk*(i_z+i_xi*para.nz)] + (kplus-K[i_kplus])*(EM1_high[i_kplus+1+para.nk*(i_z+i_xi*para.nz)]-EM1_high[i_kplus+para.nk*(i_z+i_xi*para.nz)])/(K[i_kplus+1]-K[i_kplus]);
+	// if (i_kplus < para.nk-1) {
+	// 	interp_low = EM1_low[i_kplus+para.nk*(i_z+i_xi*para.nz)] + (kplus-K[i_kplus])*(EM1_low[i_kplus+1+para.nk*(i_z+i_xi*para.nz)]-EM1_low[i_kplus+para.nk*(i_z+i_xi*para.nz)])/(K[i_kplus+1]-K[i_kplus]);
+	// 	interp_high = EM1_high[i_kplus+para.nk*(i_z+i_xi*para.nz)] + (kplus-K[i_kplus])*(EM1_high[i_kplus+1+para.nk*(i_z+i_xi*para.nz)]-EM1_high[i_kplus+para.nk*(i_z+i_xi*para.nz)])/(K[i_kplus+1]-K[i_kplus]);
+	// } else {
+	// 	interp_low = EM1_low[i_kplus+i_z*para.nk+i_xi*para.nz*para.nk];
+	// 	interp_high = EM1_high[i_kplus+i_z*para.nk+i_xi*para.nz*para.nk];
+	// };
 	interp_low = EM1_low[i_kplus+i_z*para.nk+i_xi*para.nz*para.nk];
 	interp_high = EM1_high[i_kplus+i_z*para.nk+i_xi*para.nz*para.nk];
 	if (
@@ -415,57 +424,60 @@ struct shrink
 				EM1_low,EM1_high,para))
 			{
 				tempflag++;
-				m1min = m1-step1;
+				m1min = m1;
 				break; // break and only break one layer of for loop
 			};
 		};
 
-		// // "Trace-back" to refine the min_m1, assuming we found at least one m !!!
-		// double min_step = step1/(nm1-1);
-		// double m1min_left = m1min - step1; 
-		// for (int i_m1min = 0; i_m1min < nm1; i_m1min++) {
-		// 	double m1 = m1min_left + i_m1min*min_step;
-		// 	if (eureka(k,z,xxi,m1,zkttheta,i_z,i_xxi,K,
-		// 		EM1_low,EM1_high,para))
-		// 	{
-		// 		tempflag++;
-		// 		m1min = m1;
-		// 		break; // break and only break one layer of for loop
+		// "Trace-back" to refine the min_m1, assuming we found at least one m !!!
+		// if (tempflag != 0) {
+		// 	double min_step = step1/(nm1-1);
+		// 	double m1min_left = m1min - step1; 
+		// 	for (int i_m1min = 0; i_m1min < nm1; i_m1min++) {
+		// 		double m1 = m1min_left + i_m1min*min_step;
+		// 		if (eureka(k,z,xxi,m1,zkttheta,i_z,i_xxi,K,
+		// 					EM1_low,EM1_high,para))
+		// 		{
+		// 			tempflag++;
+		// 			m1min = m1;
+		// 			break; // break and only break one layer of for loop
+		// 		};
 		// 	};
 		// };
 
 		// Initial search to find the max m
-		for (int m_index = nm1-1; m_index >= 0; m_index--) {
-			int i_m1 = m_index;
-			double m1=m1min+double(i_m1)*step1;
+		for (int i_m1max = 0; i_m1max < nm1; i_m1max++) {
+			double m1=m1max - double(i_m1max)*step1;
 			if (eureka(k,z,xxi,m1,zkttheta,i_z,i_xxi,K,
 				EM1_low,EM1_high,para))
 			{
 				tempflag++;
-				m1max = m1+step1;
+				m1max = m1;
 				break; // break and only break one layer of for loop
 			};
 		};
 
-		// // "Trace-back" to refine the max_m1, assuming we found at least one m !!!
-		// double max_step = step1/(nm1-1);
-		// double m1max_right = m1max + step1; 
-		// for (int i_m1max = 0; i_m1max < nm1; i_m1max++) {
-		// 	double m1 = m1max_right - i_m1max*max_step;
-		// 	if (eureka(k,z,xxi,m1,zkttheta,i_z,i_xxi,K,
-		// 		EM1_low,EM1_high,para))
-		// 	{
-		// 		tempflag++;
-		// 		m1max = m1;
-		// 		break; // break and only break one layer of for loop
+		// "Trace-back" to refine the max_m1, assuming we found at least one m !!!
+		// if (tempflag != 0) {
+		// 	double max_step = step1/(nm1-1);
+		// 	double m1max_right = m1max + step1; 
+		// 	for (int i_m1max = 0; i_m1max < nm1; i_m1max++) {
+		// 		double m1 = m1max_right - double(i_m1max)*max_step;
+		// 		if (eureka(k,z,xxi,m1,zkttheta,i_z,i_xxi,K,
+		// 					EM1_low,EM1_high,para))
+		// 		{
+		// 			tempflag++;
+		// 			m1max = m1;
+		// 			break; // break and only break one layer of for loop
+		// 		};
 		// 	};
 		// };
 
 		// Update Vs
 		flag[index] = double(tempflag)/double(nm1);
 		if (tempflag == 0) {
-			Vplus1_high[index] = m1min_old;
-			Vplus1_low[index] = m1max_old; 
+			Vplus1_high[index] = m1max_old;
+			Vplus1_low[index] = m1min_old; 
 		} else {
 			Vplus1_high[index] = m1max;
 			Vplus1_low[index] = m1min;
@@ -495,20 +507,20 @@ struct myDist {
 	}
 };
 
-int main()
+int main(int argc, char ** argv)
 {
 	// Initialize Parameters
 	para_struct para;
 
 	// Set Accuracy Parameters
-	para.nk = 256;
+	para.nk = 2560;
 	para.nb = 1 ;
 	para.nz = 7;
 	para.nxxi = 7;
-	para.nm1 = 2560 ;
+	para.nm1 = 1024;
 	para.tol = 1e-6;
 	para.maxiter = 1e5;
-	para.kwidth = 1.5 ;
+	para.kwidth = 1.2;
 	para.bwidth = 1.15 ;
 	para.mkwidth = 20.0 ; 
 
@@ -541,10 +553,11 @@ int main()
 	cout << setprecision(16) << "tol: " << para.tol << endl;
 
 	// Select Device
-	int num_devices;
-	cudaGetDeviceCount(&num_devices);
-	if (num_devices>1) {
-		cudaSetDevice(1);
+	// int num_devices;
+	// cudaGetDeviceCount(&num_devices);
+	if (argc > 1) {
+		int gpu = atoi(argv[1]);
+		cudaSetDevice(gpu);
 	};
 	// Only for cuBLAS
 	const double alpha = 1.0;
@@ -563,7 +576,7 @@ int main()
 	host_vector<double> h_EM1_low(para.nk*para.nz*para.nxxi,0.0);
 	host_vector<double> h_EM1_high(para.nk*para.nz*para.nxxi,0.0);
 
-	host_vector<double> h_P(para.nz*para.nxxi*para.nz*para.nxxi, 1.0/double(para.nz*para.nxxi));
+	host_vector<double> h_P(para.nz*para.nxxi*para.nz*para.nxxi, 0);
 	host_vector<double> h_flag(para.nk*para.nz*para.nxxi, 0); 
 
 	// host_vector<double> h_c(para.nk*para.nz*para.nxxi*para.nm1);
@@ -597,7 +610,7 @@ int main()
 	save_vec(h_P,"Pcuda.csv");
 
 	// Obtain initial guess from linear solution
-	guess_linear(h_K, h_Z, h_XXI, h_V1_low, h_V1_high, para, 0.5, 1.5) ;
+	guess_linear(h_K, h_Z, h_XXI, h_V1_low, h_V1_high, para, 0.2, 5.0) ;
 	save_vec(h_V1_low,"V1_low_guess.csv");
 	save_vec(h_V1_high,"V1_high_guess.csv");
 
