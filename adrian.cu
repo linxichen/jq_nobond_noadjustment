@@ -143,7 +143,7 @@ struct para_struct {
 	};
 };
 
-void guess_linear(host_vector<double> K, host_vector<double> Z, host_vector<double> XXI, host_vector<double> V1, para_struct para, double factor) {
+void guess_linear(const host_vector<double> K, const host_vector<double> Z, const host_vector<double> XXI, host_vector<double> & V1_low, host_vector<double> & V1_high, para_struct para, double factor_low, double factor_high) {
 	// Initialize matrices
 	int n = 9; int n_jump = 8; int n_shock = 2;
 	host_vector<double> A(n*n,0); 
@@ -152,9 +152,7 @@ void guess_linear(host_vector<double> K, host_vector<double> Z, host_vector<doub
 	host_vector<double> rrho(n_shock*n_shock,0);
    	host_vector<double> Pphi(n*(n-n_jump+n_shock),0);
 
-	// Fill in matrices
-
-
+	// Fill in matrices.
 	// HH Budget. Correct.
 	B[0+3*n] = para.nss;
 	B[0+2*n] = para.wss;
@@ -211,8 +209,20 @@ void guess_linear(host_vector<double> K, host_vector<double> Z, host_vector<doub
 		rrho[i] = para.A[i];
 	};
 
-	// Time to the linear solver
+	// Call linear solver
 	linearQZ(A.data(),B.data(),C.data(),rrho.data(),n,n_jump,n_shock,Pphi.data());
+
+	// Create guesses.
+	for (int i_k=0; i_k<para.nk; i_k++) {
+		for (int i_z = 0; i_z < para.nz; i_z++) {
+			for (int i_xxi = 0; i_xxi < para.nxxi; i_xxi++) {
+				double temp = para.mkss+Pphi[8+0*9]*(K[i_k]-para.kss) + Pphi[8+1*9]*(log(Z[i_z])-log(para.zbar))+ Pphi[8+2*9]*(log(XXI[i_xxi])-log(para.xxibar));
+				V1_low[i_k+para.nk*i_z+para.nk*para.nz*i_xxi] = factor_low*temp;
+				V1_high[i_k+para.nk*i_z+para.nk*para.nz*i_xxi] = factor_high*temp;
+			};
+		};
+	};
+
 };
 
 struct case1_hour {
@@ -391,6 +401,8 @@ struct shrink
 
 		// Find the "box" or "hypercube" that described m's range. Fancy word.
 		double m1min = V1_low[index]; double m1max = V1_high[index];
+		double m1min_old = m1min;
+		double m1max_old = m1max;
 		double step1 = (m1max-m1min)/double(para.nm1-1);
 		double tempflag = 0.0;
 		int nm1 = para.nm1;
@@ -452,8 +464,8 @@ struct shrink
 		// Update Vs
 		flag[index] = double(tempflag)/double(nm1);
 		if (tempflag == 0) {
-			Vplus1_high[index] = -51709394;
-			Vplus1_low[index] = -51709394; 
+			Vplus1_high[index] = m1min_old;
+			Vplus1_low[index] = m1max_old; 
 		} else {
 			Vplus1_high[index] = m1max;
 			Vplus1_low[index] = m1min;
@@ -493,7 +505,7 @@ int main()
 	para.nb = 1 ;
 	para.nz = 7;
 	para.nxxi = 7;
-	para.nm1 = 256 ;
+	para.nm1 = 2560 ;
 	para.tol = 1e-6;
 	para.maxiter = 1e5;
 	para.kwidth = 1.5 ;
@@ -585,7 +597,9 @@ int main()
 	save_vec(h_P,"Pcuda.csv");
 
 	// Obtain initial guess from linear solution
-	guess_linear(h_K, h_Z, h_XXI, h_V1_low, para, 0.9) ;
+	guess_linear(h_K, h_Z, h_XXI, h_V1_low, h_V1_high, para, 0.5, 1.5) ;
+	save_vec(h_V1_low,"V1_low_guess.csv");
+	save_vec(h_V1_high,"V1_high_guess.csv");
 
 	// Copy to the device
 	device_vector<double> d_K = h_K;
