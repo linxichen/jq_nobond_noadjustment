@@ -5,30 +5,28 @@ close all
 
 %% Parameters that are used
 % Bgrid = csvread('Bgridcuda.csv');
-Kgrid = csvread('../Kgridcuda.csv');
-Zgrid = csvread('../Zgridcuda.csv');
-XXIgrid = csvread('../XXIgridcuda.csv');
-P = csvread('../Pcuda.csv');
+Kgrid = csvread('../adrian_results/Kgrid.csv');
+Zgrid = csvread('../adrian_results/Zgrid.csv');
+XXIgrid = csvread('../adrian_results/XXIgrid.csv');
+P = csvread('../adrian_results/Pcuda.csv');
 
 nk = length(Kgrid); % nb = length(Bgrid);
 nz = length(Zgrid); nxi = length(XXIgrid);
-parameters;
+mypara;
 %% Read in shadow value and policy functions
-MK_low = csvread('../V1_low.csv');
-% MC_low = csvread('V3_low.csv');
-% 
-MK_high = csvread('../V1_high.csv');
-% MC_high = csvread('V3_high.csv');
+MK_low = csvread('../adrian_results/V1_low.csv');
+MK_high = csvread('../adrian_results/V1_high.csv');
 
-koptcuda = csvread('../koptcuda.csv');
-coptcuda = csvread('../coptcuda.csv');
-Rcuda = csvread('../Rcuda.csv');
-dcuda = csvread('../dcuda.csv');
-ncuda = csvread('../ncuda.csv');
-mmucuda = csvread('../mmucuda.csv');
-wagecuda = csvread('../wagecuda.csv');
 
-flagcuda = csvread('../flagcuda.csv');
+koptcuda = csvread('../adrian_results/kopt.csv');
+coptcuda = csvread('../adrian_results/copt.csv');
+% Rcuda = csvread('../R.csv');
+dcuda = csvread('../adrian_results/dopt.csv');
+ncuda = csvread('../adrian_results/nopt.csv');
+mmucuda = csvread('../adrian_results/mmuopt.csv');
+wagecuda = csvread('../adrian_results/wopt.csv');
+
+flagcuda = csvread('../adrian_results/flag.csv');
 % EEerrorcuda = csvread('EEerror.csv');
 
 %% Reshape
@@ -65,7 +63,7 @@ xlabel('TFP Shock'); ylabel('Capital'); zlabel('Flags')
 % One slice of captial policy
 figure
 tightness = 1;
-tfp = 7;
+tfp = 5;
 subplot(3,3,1)
 plot(Kgrid,koptcuda(:,tfp,tightness)-Kgrid);
 xlabel('Capital'); ylabel('Change in Capital')
@@ -100,7 +98,7 @@ legend boxoff;
 
 Kgrid_occa = Kgrid;
 Zgrid_occa = Zgrid;
-XIgrid_occa = XIgrid;
+XXIgrid_occa = XXIgrid;
 koptcuda_occa = koptcuda;
 coptcuda_occa = coptcuda;
 wagecuda_occa = wagecuda;

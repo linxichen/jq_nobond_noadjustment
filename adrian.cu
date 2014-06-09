@@ -4,6 +4,15 @@
  * is the asymmetry of policy functions.
  */
 
+#define nk 512
+#define nz 7
+#define nxxi 7
+#define nm1 1024 
+#define tol 1e-6
+#define maxiter 2000
+#define kwidth 1.2
+#define mkwidth 20.0 
+
 /* Includes, system */
 #include <iostream>
 #include <iomanip>
@@ -34,23 +43,13 @@
 // Includes, C++ codes
 #include "cppcode.h"
 
+// Includes, model specific things
+
 using namespace std;
 using namespace thrust;
 
 // Define an class that contains parameters and steady states
 struct para_struct {
-	// Accuracy controls
-	int nk ;
-	int nb ;
-	int nz ;
-	int nxxi;
-	int nm1;
-	int maxiter;
-	double tol;
-	double kwidth ;
-	double bwidth ;
-	double mkwidth;
-
 	// Model parameters
 	double aalpha;
 	double bbeta ;
@@ -111,7 +110,6 @@ struct para_struct {
 		std::ofstream fileout(filename.c_str(), std::ofstream::trunc);
 		// Accuracy Controls
 		fileout << setprecision(16) << "nk=" << nk << ";"<< endl;
-		fileout << setprecision(16) << "nb=" << nb << ";"<< endl;
 		fileout << setprecision(16) << "nz=" << nz << ";"<< endl;
 		fileout << setprecision(16) << "nxxi=" << nxxi << ";"<< endl;
 		fileout << setprecision(16) << "nm1=" << nm1 << ";"<< endl;
@@ -213,12 +211,12 @@ void guess_linear(const host_vector<double> K, const host_vector<double> Z, cons
 	linearQZ(A.data(),B.data(),C.data(),rrho.data(),n,n_jump,n_shock,Pphi.data());
 
 	// Create guesses.
-	for (int i_k=0; i_k<para.nk; i_k++) {
-		for (int i_z = 0; i_z < para.nz; i_z++) {
-			for (int i_xxi = 0; i_xxi < para.nxxi; i_xxi++) {
+	for (int i_k=0; i_k<nk; i_k++) {
+		for (int i_z = 0; i_z < nz; i_z++) {
+			for (int i_xxi = 0; i_xxi < nxxi; i_xxi++) {
 				double temp = para.mkss+Pphi[8+0*9]*(K[i_k]-para.kss) + Pphi[8+1*9]*(log(Z[i_z])-log(para.zbar))+ Pphi[8+2*9]*(log(XXI[i_xxi])-log(para.xxibar));
-				V1_low[i_k+para.nk*i_z+para.nk*para.nz*i_xxi] = factor_low*temp;
-				V1_high[i_k+para.nk*i_z+para.nk*para.nz*i_xxi] = factor_high*temp;
+				V1_low[i_k+nk*i_z+nk*nz*i_xxi] = factor_low*temp;
+				V1_high[i_k+nk*i_z+nk*nz*i_xxi] = factor_high*temp;
 			};
 		};
 	};
@@ -282,79 +280,144 @@ struct case2_hour {
 	};
 };
 
-// Eureka function check whether a tuple (STATE,SHOCK,SHADOW) can survive to next iteration
-__host__ __device__
-bool eureka(double k, double z, double xxi,
-            double m1, double zkttheta, int i_z, int i_xi,
-            double* K, 
-			double* EM1_low, double* EM1_high, 
-			para_struct para) {
-	
-	// Declare control variables
-	double n, Y, MPK, kplus, c, mmu, w, lhs1;
-	int i_kplus;
-	double interp_low, interp_high;
+// Define state struct that contain things known to shrink functor
+struct state_struct {
+	// Data member
+	double k, z, xxi, m1, zkttheta;
 
-	// Case 1: Binding
-	n = newton(case1_hour(k,z,xxi,m1,zkttheta,para),0.0,1.0,0.3);
-	// printf("Hour solved here is: %f\n",n);
-	Y = zkttheta*pow(n,1-para.ttheta);
-	MPK = para.ttheta*Y/k;
-	kplus = Y/xxi;
-	c = Y+(1-para.ddelta)*k-kplus;
-	mmu = 1-(m1*c-1+para.ddelta)/MPK;	
-	w = (1-mmu)*(1-para.ttheta)*Y/n;
-	// d = c-w*n;
-	i_kplus = fit2grid(kplus,para.nk,K);
-	lhs1 = (1-xxi*mmu)/c;
-	// if (i_kplus < para.nk-1) {
-	// 	interp_low = EM1_low[i_kplus+para.nk*(i_z+i_xi*para.nz)] + (kplus-K[i_kplus])*(EM1_low[i_kplus+1+para.nk*(i_z+i_xi*para.nz)]-EM1_low[i_kplus+para.nk*(i_z+i_xi*para.nz)])/(K[i_kplus+1]-K[i_kplus]);
-	// 	interp_high = EM1_high[i_kplus+para.nk*(i_z+i_xi*para.nz)] + (kplus-K[i_kplus])*(EM1_high[i_kplus+1+para.nk*(i_z+i_xi*para.nz)]-EM1_high[i_kplus+para.nk*(i_z+i_xi*para.nz)])/(K[i_kplus+1]-K[i_kplus]);
-	// } else {
-	// 	interp_low = EM1_low[i_kplus+i_z*para.nk+i_xi*para.nz*para.nk];
-	// 	interp_high = EM1_high[i_kplus+i_z*para.nk+i_xi*para.nz*para.nk];
+	__host__ __device__
+	void load(double _k, double _z, double _xxi, double _m1, double _zkttheta) {
+		k = _k;
+		z = _z;
+		xxi = _xxi;
+		m1 = _m1;
+		zkttheta = _zkttheta;
+	};
+};
+
+
+
+// Define a struct that contains variables implied by augmented state
+struct control_struct {
+	// Data member
+	double kplus, c, n, w, d, mmu, Y, lhs1;
+
+	// Constructor and finding the control variables
+	__host__ __device__
+	void compute(state_struct state, para_struct para, int binding) {
+		if (binding == 1) {
+			// Case 1: Binding
+			double k = state.k;
+			double z = state.z;
+			double xxi = state.xxi;
+			double m1 = state.m1;
+			double zkttheta = state.zkttheta;
+			n = newton(case1_hour(k,z,xxi,m1,zkttheta,para),0.0,1.0,0.3);
+			Y = zkttheta*pow(n,1-para.ttheta);
+			double MPK = para.ttheta*Y/k;
+			kplus = Y/xxi;
+			c = Y+(1-para.ddelta)*k-kplus;
+			mmu = 1-(m1*c-1+para.ddelta)/MPK;	
+			w = (1-mmu)*(1-para.ttheta)*Y/n;
+			lhs1 = (1-mmu*xxi)/c;
+			d = para.aalpha*c/(1-n);
+		};
+
+		if (binding == 0) {
+			double k = state.k;
+			double z = state.z;
+			double xxi = state.xxi;
+			double m1 = state.m1;
+			double zkttheta = state.zkttheta;
+			// Case 2: Not Binding
+			n = newton(case2_hour(k,z,xxi,m1,zkttheta,para),0.0,1.0,0.3);
+			Y = zkttheta*pow(n,1-para.ttheta);
+			double MPK = para.ttheta*Y/k;
+			mmu = 0;
+			c = (1-para.ddelta+MPK)/m1;	
+			kplus = (1-para.ddelta)*k + Y - c;
+			w = (1-para.ttheta)*Y/n;
+			lhs1 = (1-mmu*xxi)/c;
+			d = para.aalpha*c/(1-n);
+		};
+	};
+};
+
+__host__ __device__
+bool eureka(state_struct s, control_struct & u1, control_struct & u2, para_struct para, int i_z, int i_xxi, double* EM1_low, double* EM1_high, double* K) {
+	double interp_low, interp_high;
+	int i_kplus;
+
+	// Case 1: Binding 
+	u1.compute(s,para,1);
+
+	// A series of tests whether it make senses
+	if (u1.c <= 0) {
+		goto case2;
+	};
+	if (u1.kplus < 0) {
+		goto case2;
+	};
+	// if (u.kplus < K[0]) {
+	// 	goto case2;
 	// };
-	interp_low = EM1_low[i_kplus+i_z*para.nk+i_xi*para.nz*para.nk];
-	interp_high = EM1_high[i_kplus+i_z*para.nk+i_xi*para.nz*para.nk];
-	
-	if (
-		(para.bbeta*interp_low <= lhs1) &&
-		(lhs1 <=para.bbeta*interp_high) &&
-		(c>0) && (mmu>=0) && (w>=0) && (n>0) && (n<1)//  &&  
-	   )
-	{
-		return true;
+	// if (u.kplus > K[nk-1]) {
+	// 	goto case2;
+	// };
+	if (u1.mmu < 0) {
+		// LM shouldn't be negative
+		goto case2;
+	};
+	if ( (u1.n <= 0) || (u1.n >= 1) ) {
+		// Hours out of bound.
+		goto case2;
 	};
 
-	// Case 2: Not Binding
-	n = newton(case2_hour(k,z,xxi,m1,zkttheta,para),0.0,1.0,0.3);
-	Y = zkttheta*pow(n,1-para.ttheta);
-	MPK = para.ttheta*Y/k;
-	mmu = 0;
-	c = (1-para.ddelta+MPK)/m1;	
-	kplus = (1-para.ddelta)*k + Y - c;
-	w = (1-para.ttheta)*Y/n;
-	lhs1 = (1-xxi*mmu)/c;
-	i_kplus = fit2grid(kplus,para.nk,K);
-	// if (i_kplus < para.nk-1) {
-	// 	interp_low = EM1_low[i_kplus+para.nk*(i_z+i_xi*para.nz)] + (kplus-K[i_kplus])*(EM1_low[i_kplus+1+para.nk*(i_z+i_xi*para.nz)]-EM1_low[i_kplus+para.nk*(i_z+i_xi*para.nz)])/(K[i_kplus+1]-K[i_kplus]);
-	// 	interp_high = EM1_high[i_kplus+para.nk*(i_z+i_xi*para.nz)] + (kplus-K[i_kplus])*(EM1_high[i_kplus+1+para.nk*(i_z+i_xi*para.nz)]-EM1_high[i_kplus+para.nk*(i_z+i_xi*para.nz)])/(K[i_kplus+1]-K[i_kplus]);
-	// } else {
-	// 	interp_low = EM1_low[i_kplus+i_z*para.nk+i_xi*para.nz*para.nk];
-	// 	interp_high = EM1_high[i_kplus+i_z*para.nk+i_xi*para.nz*para.nk];
-	// };
-	interp_low = EM1_low[i_kplus+i_z*para.nk+i_xi*para.nz*para.nk];
-	interp_high = EM1_high[i_kplus+i_z*para.nk+i_xi*para.nz*para.nk];
-	if (
-		(para.bbeta*interp_low <= lhs1) &&
-		(lhs1 <=para.bbeta*interp_high) &&
-		(c>0) && (w>=0) && (xxi*kplus>Y) && (n>0) && (n<1)
-	   )
-	{
-		return true;
-	} else {
+	i_kplus = fit2grid(u1.kplus,nk,K);
+	interp_low = EM1_low[i_kplus+i_z*nk+i_xxi*nz*nk];
+	interp_high = EM1_high[i_kplus+i_z*nk+i_xxi*nz*nk];
+	if ( (u1.lhs1 > para.bbeta*interp_high) || (para.bbeta*interp_low > u1.lhs1) ) {
+		// Euler equation 1 fails
+		goto case2;
+	};
+
+	// Found a sensible m, break the loop
+	return true;
+
+case2: // Not Binding
+	u2.compute(s,para,0);
+	// A series of tests whether it make senses
+	if (u2.c <= 0) {
 		return false;
 	};
+	if (u2.kplus < 0) {
+		return false;
+	};
+	// if (u2.kplus < K[0]) {
+	// 	return false;
+	// };
+	// if (u2.kplus > K[nk-1]) {
+	// 	return false;
+	// };
+	if (s.xxi*u2.kplus <= u2.Y) {
+		// Financial constraint shouldn't be binding 
+		return false;
+	};
+	if ( (u2.n <= 0) || (u2.n >= 1) ) {
+		// Hours out of bound.
+		return false;
+	};
+
+	i_kplus = fit2grid(u2.kplus,nk,K);
+	interp_low = EM1_low[i_kplus+i_z*nk+i_xxi*nz*nk];
+	interp_high = EM1_high[i_kplus+i_z*nk+i_xxi*nz*nk];
+	if ( (u2.lhs1 > para.bbeta*interp_high) || (para.bbeta*interp_low > u2.lhs1) ) {
+		// Euler equation 1 fails
+		return false;
+	};
+
+	// A sensible m found, we escape the loop
+	return true;
 };
 
 // This functor yields RHS for each (k', k, z). Follwing examples in Thrust doc
@@ -396,82 +459,53 @@ struct shrink
 
 	__host__ __device__
 	void operator()(int index) {
+		// Perform ind2sub
 		int subs[3];
 		int size_vec[3];
-		size_vec[0] = para.nk;
-		size_vec[1] = para.nz;
-		size_vec[2] = para.nxxi;
+		size_vec[0] = nk;
+		size_vec[1] = nz;
+		size_vec[2] = nxxi;
 		ind2sub(3,size_vec,index,subs);
 		int i_k = subs[0];
 		int i_z = subs[1];
 		int i_xxi = subs[2];
-		double k =K[i_k]; double z=Z[i_z]; double xxi=XXI[i_xxi];
-		double zkttheta = z*pow(k,para.ttheta); 
 
 		// Find the "box" or "hypercube" that described m's range. Fancy word.
 		double m1min = V1_low[index]; double m1max = V1_high[index];
 		double m1min_old = m1min;
 		double m1max_old = m1max;
-		double step1 = (m1max-m1min)/double(para.nm1-1);
+		double step1 = (m1max-m1min)/double(nm1-1);
 		double tempflag = 0.0;
-		int nm1 = para.nm1;
+
+		// Find and construct state and control, otherwise they won't update in the for loop
+		double k =K[i_k]; double z=Z[i_z]; double xxi=XXI[i_xxi];
+		double zkttheta = z*pow(k,para.ttheta); 
+		state_struct s;
+		control_struct u1, u2;
 
 		// Initial search to find the min m
-		for (int m_index = 0; m_index < nm1; m_index++) {
-			int i_m1 = m_index;
-			double m1=m1min+double(i_m1)*step1;
-			if (eureka(k,z,xxi,m1,zkttheta,i_z,i_xxi,K,
-				EM1_low,EM1_high,para))
-			{
-				tempflag++;
+		for (int i_m1min = 0; i_m1min < nm1; i_m1min++) {
+			// Construct state and find control variables
+			double m1 = m1min+double(i_m1min)*step1;
+			s.load(k,z,xxi,m1,zkttheta);
+			if (eureka(s,u1,u2,para,i_z,i_xxi,EM1_low,EM1_high,K)) {
 				m1min = m1;
-				break; // break and only break one layer of for loop
+				tempflag++;
+				break;
 			};
 		};
-
-		// "Trace-back" to refine the min_m1, assuming we found at least one m !!!
-		// if (tempflag != 0) {
-		// 	double min_step = step1/(nm1-1);
-		// 	double m1min_left = m1min - step1; 
-		// 	for (int i_m1min = 0; i_m1min < nm1; i_m1min++) {
-		// 		double m1 = m1min_left + i_m1min*min_step;
-		// 		if (eureka(k,z,xxi,m1,zkttheta,i_z,i_xxi,K,
-		// 					EM1_low,EM1_high,para))
-		// 		{
-		// 			tempflag++;
-		// 			m1min = m1;
-		// 			break; // break and only break one layer of for loop
-		// 		};
-		// 	};
-		// };
 
 		// Initial search to find the max m
 		for (int i_m1max = 0; i_m1max < nm1; i_m1max++) {
-			double m1=m1max - double(i_m1max)*step1;
-			if (eureka(k,z,xxi,m1,zkttheta,i_z,i_xxi,K,
-				EM1_low,EM1_high,para))
-			{
-				tempflag++;
+			// Construct state and find control variables
+			double m1 = m1max - double(i_m1max)*step1;
+			s.load(k,z,xxi,m1,zkttheta);
+			if (eureka(s,u1,u2,para,i_z,i_xxi,EM1_low,EM1_high,K)) {
 				m1max = m1;
-				break; // break and only break one layer of for loop
+				tempflag++;
+				break;
 			};
 		};
-
-		// "Trace-back" to refine the max_m1, assuming we found at least one m !!!
-		// if (tempflag != 0) {
-		// 	double max_step = step1/(nm1-1);
-		// 	double m1max_right = m1max + step1; 
-		// 	for (int i_m1max = 0; i_m1max < nm1; i_m1max++) {
-		// 		double m1 = m1max_right - double(i_m1max)*max_step;
-		// 		if (eureka(k,z,xxi,m1,zkttheta,i_z,i_xxi,K,
-		// 					EM1_low,EM1_high,para))
-		// 		{
-		// 			tempflag++;
-		// 			m1max = m1;
-		// 			break; // break and only break one layer of for loop
-		// 		};
-		// 	};
-		// };
 
 		// Update Vs
 		flag[index] = double(tempflag)/double(nm1);
@@ -482,7 +516,7 @@ struct shrink
 			Vplus1_high[index] = m1max;
 			Vplus1_low[index] = m1min;
 		};
-	}
+	};
 };	
 
 // This functor calculates the error
@@ -512,18 +546,6 @@ int main(int argc, char ** argv)
 	// Initialize Parameters
 	para_struct para;
 
-	// Set Accuracy Parameters
-	para.nk = 2560;
-	para.nb = 1 ;
-	para.nz = 7;
-	para.nxxi = 7;
-	para.nm1 = 1024;
-	para.tol = 1e-6;
-	para.maxiter = 1e5;
-	para.kwidth = 1.2;
-	para.bwidth = 1.15 ;
-	para.mkwidth = 20.0 ; 
-
 	// Set Model Parameters
 	para.bbeta = 0.9825;
 	para.ddelta = 0.025;
@@ -550,7 +572,7 @@ int main(int argc, char ** argv)
 	cout << setprecision(16) << "wss: " << para.wss << endl;
 	cout << setprecision(16) << "mmuss: " << para.mmuss << endl;
 	cout << setprecision(16) << "aalpha: " << para.aalpha << endl;
-	cout << setprecision(16) << "tol: " << para.tol << endl;
+	cout << setprecision(16) << "tol: " << tol << endl;
 
 	// Select Device
 	// int num_devices;
@@ -564,55 +586,47 @@ int main(int argc, char ** argv)
 	const double beta = 0.0;
 
 	// Create all STATE, SHOCK grids here
-	host_vector<double> h_K(para.nk); 
-	host_vector<double> h_Z(para.nz);
-	host_vector<double> h_XXI(para.nxxi);
+	host_vector<double> h_K(nk); 
+	host_vector<double> h_Z(nz);
+	host_vector<double> h_XXI(nxxi);
 
-	host_vector<double> h_V1_low(para.nk*para.nz*para.nxxi, 1/para.mkwidth*para.mkss);
-	host_vector<double> h_V1_high(para.nk*para.nz*para.nxxi,para.mkwidth*para.mkss);
-	host_vector<double> h_Vplus1_low(para.nk*para.nz*para.nxxi,1/para.mkwidth*para.mkss);
-	host_vector<double> h_Vplus1_high(para.nk*para.nz*para.nxxi,para.mkwidth*para.mkss);
+	host_vector<double> h_V1_low(nk*nz*nxxi, 1/mkwidth*para.mkss);
+	host_vector<double> h_V1_high(nk*nz*nxxi,mkwidth*para.mkss);
+	host_vector<double> h_Vplus1_low(nk*nz*nxxi,1/mkwidth*para.mkss);
+	host_vector<double> h_Vplus1_high(nk*nz*nxxi,mkwidth*para.mkss);
 
-	host_vector<double> h_EM1_low(para.nk*para.nz*para.nxxi,0.0);
-	host_vector<double> h_EM1_high(para.nk*para.nz*para.nxxi,0.0);
+	host_vector<double> h_EM1_low(nk*nz*nxxi,0.0);
+	host_vector<double> h_EM1_high(nk*nz*nxxi,0.0);
 
-	host_vector<double> h_P(para.nz*para.nxxi*para.nz*para.nxxi, 0);
-	host_vector<double> h_flag(para.nk*para.nz*para.nxxi, 0); 
+	host_vector<double> h_P(nz*nxxi*nz*nxxi, 0);
+	host_vector<double> h_flag(nk*nz*nxxi, 0); 
 
-	// host_vector<double> h_c(para.nk*para.nz*para.nxxi*para.nm1);
-	// host_vector<double> h_n(para.nk*para.nz*para.nxxi*para.nm1);
-	// host_vector<double> h_kplus(para.nk*para.nz*para.nxxi*para.nm1);
-	// host_vector<double> h_mmu(para.nk*para.nz*para.nxxi*para.nm1);
-	// host_vector<double> h_lhs(para.nk*para.nz*para.nxxi*para.nm1);
-	// host_vector<double> h_rhs_low(para.nk*para.nz*para.nxxi*para.nm1);
-	// host_vector<double> h_rhs_high(para.nk*para.nz*para.nxxi*para.nm1);
+	// host_vector<double> h_c(nk*nz*nxxi*nm1);
+	// host_vector<double> h_n(nk*nz*nxxi*nm1);
+	// host_vector<double> h_kplus(nk*nz*nxxi*nm1);
+	// host_vector<double> h_mmu(nk*nz*nxxi*nm1);
+	// host_vector<double> h_lhs(nk*nz*nxxi*nm1);
+	// host_vector<double> h_rhs_low(nk*nz*nxxi*nm1);
+	// host_vector<double> h_rhs_high(nk*nz*nxxi*nm1);
 	
 	// Create capital grid
-	double minK = 1/para.kwidth*para.kss;
-	double maxK = para.kwidth*para.kss;
-	linspace(minK,maxK,para.nk,raw_pointer_cast(h_K.data()));
-	save_vec(h_K,para.nk,"Kgrid.csv");
+	double minK = 1/kwidth*para.kss;
+	double maxK = kwidth*para.kss;
+	linspace(9,11,nk,raw_pointer_cast(h_K.data()));
 
 	// Create shocks grids
-	host_vector<double> h_shockgrids(2*para.nz);
+	host_vector<double> h_shockgrids(2*nz);
 	double* h_shockgrids_ptr = raw_pointer_cast(h_shockgrids.data());
 	double* h_P_ptr = raw_pointer_cast(h_P.data());
 	gridgen_fptr linspace_fptr = &linspace; // select linspace as grid gen
-	tauchen_vec(2,para.nz,3,para.A,para.Ssigma_e,h_shockgrids_ptr,h_P_ptr,linspace_fptr);
-	for (int i_shock = 0; i_shock < para.nz; i_shock++) {
-		h_Z[i_shock] = para.zbar*exp(h_shockgrids[i_shock+0*para.nz]);
-		h_XXI[i_shock] = para.xxibar*exp(h_shockgrids[i_shock+1*para.nz]);
+	tauchen_vec(2,nz,5,para.A,para.Ssigma_e,h_shockgrids_ptr,h_P_ptr,linspace_fptr);
+	for (int i_shock = 0; i_shock < nz; i_shock++) {
+		h_Z[i_shock] = para.zbar*exp(h_shockgrids[i_shock+0*nz]);
+		h_XXI[i_shock] = para.xxibar*exp(h_shockgrids[i_shock+1*nz]);
 	};
-	display_vec(h_Z);
-	display_vec(h_XXI);
-	save_vec(h_Z,"Zgrid.csv");
-	save_vec(h_XXI,"XXIgrid.csv");
-	save_vec(h_P,"Pcuda.csv");
 
 	// Obtain initial guess from linear solution
-	guess_linear(h_K, h_Z, h_XXI, h_V1_low, h_V1_high, para, 0.2, 5.0) ;
-	save_vec(h_V1_low,"V1_low_guess.csv");
-	save_vec(h_V1_high,"V1_high_guess.csv");
+	guess_linear(h_K, h_Z, h_XXI, h_V1_low, h_V1_high, para, 1/1.2, 1.2) ;
 
 	// Copy to the device
 	device_vector<double> d_K = h_K;
@@ -650,7 +664,7 @@ int main(int argc, char ** argv)
 
 	// Firstly a virtual index array from 0 to nk*nk*nz
 	counting_iterator<int> begin(0);
-	counting_iterator<int> end(para.nk*para.nz*para.nxxi);
+	counting_iterator<int> end(nk*nz*nxxi);
 
 	// Start Timer
 	cudaEvent_t start, stop;
@@ -665,33 +679,33 @@ int main(int argc, char ** argv)
 	// and has to be destroyed later
 	cublasCreate(&handle);
 	
-	double diff = 10; double dist; int iter = 0;
-	while ((diff>para.tol)&&(iter<para.maxiter)){
+	double diff = 10; double dist = 100; int iter = 0;
+	while ((diff>tol)&&(iter<maxiter)&&(dist>0.005)){
 		// Find EMs for low and high 
 		cublasDgemm(handle,
 			CUBLAS_OP_N,  
 			CUBLAS_OP_T,
-			para.nk*para.nb, para.nz*para.nxxi, para.nz*para.nxxi,
+			nk, nz*nxxi, nz*nxxi,
 			&alpha,
 			d_V1_low_ptr, 
-			para.nk*para.nb, 
+			nk, 
 			d_P_ptr,
-			para.nz*para.nxxi,
+			nz*nxxi,
 			&beta,
 			d_EM1_low_ptr,
-			para.nk*para.nb);
+			nk);
 		cublasDgemm(handle,
 			CUBLAS_OP_N,  
 			CUBLAS_OP_T,
-			para.nk*para.nb, para.nz*para.nxxi, para.nz*para.nxxi,
+			nk, nz*nxxi, nz*nxxi,
 			&alpha,
 			d_V1_high_ptr, 
-			para.nk*para.nb, 
+			nk, 
 			d_P_ptr,
-			para.nz*para.nxxi,
+			nz*nxxi,
 			&beta,
 			d_EM1_high_ptr,
-			para.nk*para.nb);
+			nk);
 
 		// Directly find the new Value function
 		thrust::for_each(
@@ -755,90 +769,77 @@ int main(int argc, char ** argv)
 	cout << "Time= " << msecPerMatrixMul << " msec, iter= " << iter << endl;
 
 	// Copy back to host and print to file
-	h_V1_low = d_V1_low; h_V1_high = d_V1_high;
+	h_V1_low = d_Vplus1_low; h_Vplus1_high = d_V1_high;
 	h_flag = d_flag;
-	save_vec(h_V1_low,"V1_low.csv");
-	save_vec(h_V1_high,"V1_high.csv");
-	save_vec(h_flag,"flagcuda.csv");
 	
-	ofstream fout_kopt("koptcuda.csv", ios::trunc); ofstream fout_copt("coptcuda.csv", ios::trunc);
-	ofstream fout_R("Rcuda.csv", ios::trunc);
-	ofstream fout_wage("wagecuda.csv", ios::trunc);
-	ofstream fout_d("dcuda.csv", ios::trunc); ofstream fout_n("ncuda.csv", ios::trunc);
-	ofstream fout_Kgrid("Kgridcuda.csv", ios::trunc);
-	ofstream fout_Zgrid("Zgridcuda.csv", ios::trunc); ofstream fout_XXIgrid("XXIgridcuda.csv", ios::trunc);
-	ofstream fout_mmu("mmucuda.csv", ios::trunc); ofstream fout_P("Pcuda.csv", ios::trunc);
-	
-	double ttheta = para.ttheta;
-	int nk = para.nk;
-	int nz = para.nz;
-	int nxxi = para.nxxi;
-	for (int index=0; index<nk*nz*nxxi; index++) {
-		int i_xxi = index/(nk*nz);
-		int i_z  = (index-i_xxi*nk*nz)/(nk);
-		int i_k = index - i_xxi*nk*nz - i_z*nk ;
-		double m1 = (h_V1_low[index]+h_V1_low[index])/2;
-		double k =h_K[i_k];
-		double z=h_Z[i_z]; double xxi=h_XXI[i_xxi];
-		double zkttheta = z*pow(k,ttheta);
+	// Compute and save the decision variables
+	host_vector<double> h_copt(nk*nz*nxxi);
+	host_vector<double> h_kopt(nk*nz*nxxi);
+	host_vector<double> h_nopt(nk*nz*nxxi);
+	host_vector<double> h_mmuopt(nk*nz*nxxi);
+	host_vector<double> h_dopt(nk*nz*nxxi);
+	host_vector<double> h_wopt(nk*nz*nxxi);
+	state_struct s;
+	control_struct u;
+	for (int i_k=0; i_k<nk; i_k++) {
+		for (int i_z = 0; i_z < nz; i_z++) {
+			for (int i_xxi=0; i_xxi < nxxi; i_xxi++) {
+				int index = i_k+i_z*nk+i_xxi*nk*nz;
+				double m1 = (h_V1_high[index]+h_V1_high[index])/2;
+				double k = h_K[i_k];
+				double z=h_Z[i_z]; double xxi=h_XXI[i_xxi];
+				double zkttheta = z*pow(k,para.ttheta);
+				s.load(k,z,xxi,m1,zkttheta);
 
-		// Declare control variables
-		double n, Y, MPK, kplus, c, mmu, w, d;
-
-		// Case 1: Binding
-		n = newton(case1_hour(k,z,xxi,m1,zkttheta,para),0.0,1.0,0.3);
-		Y = zkttheta*pow(n,1-para.ttheta);
-		MPK = para.ttheta*Y/k;
-		kplus = Y/xxi;
-		c = Y+(1-para.ddelta)*k-kplus;
-		mmu = 1-(m1*c-1+para.ddelta)/MPK;	
-		w = (1-mmu)*(1-para.ttheta)*Y/n;
-		d = c - w*n;
-	
-		if (mmu<0)
-		{
-			// Case 2: Not Binding
-			n = newton(case2_hour(k,z,xxi,m1,zkttheta,para),0.0,1.0,0.3);
-			Y = zkttheta*pow(n,1-para.ttheta);
-			MPK = para.ttheta*Y/k;
-			mmu = 0;
-			c = (1-para.ddelta+MPK)/m1;	
-			kplus = (1-para.ddelta)*k + Y - c;
-			w = (1-para.ttheta)*Y/n;
-			d = c - w*n;
+				// Try not binding first
+				u.compute(s,para,0);
+				if (
+						(s.xxi*u.kplus > u.Y) &&
+						(u.c > 0) && 
+						(u.kplus >= h_K[0]) &&
+						(u.kplus <= h_K[nk-1]) &&
+						(u.n > 0) &&
+						(u.n < 1) 
+				   )
+				{
+					h_copt[index] = u.c;
+					h_kopt[index] = u.kplus;
+					h_nopt[index] = u.n;
+					h_mmuopt[index] = u.mmu;
+					h_dopt[index] = u.d;
+					h_wopt[index] = u.w;
+				} else {
+					u.compute(s,para,1);
+					h_copt[index] = u.c;
+					h_kopt[index] = u.kplus;
+					h_nopt[index] = u.n;
+					h_mmuopt[index] = u.mmu;
+					h_dopt[index] = u.d;
+					h_wopt[index] = u.w;
+				};
+			};
 		};
-
-		fout_kopt << kplus << '\n';
-		fout_copt << c << '\n';
-		fout_R << 1 << '\n';
-		fout_d << d << '\n';
-		fout_n << n << '\n';
-		fout_mmu << mmu << '\n';
-		fout_wage << w << '\n';
 	};
 	
-	for (int i=0; i<nk; i++) {
-		fout_Kgrid << h_K[i] << '\n';
-	};
-	for (int i=0; i<nz; i++) {
-		fout_Zgrid << h_Z[i] << '\n';
-	};
-	for (int i=0; i<nxxi; i++) {
-		fout_XXIgrid << h_XXI[i] << '\n';
-	};
-	for (int i=0; i<nz*nxxi*nz*nxxi; i++) {
-		fout_P << h_P[i] << '\n';
-	};
-
-	fout_Kgrid.close();
-	fout_Zgrid.close(); fout_XXIgrid.close();
-	fout_kopt.close(); fout_copt.close();
-	fout_R.close(); fout_d.close();
-	fout_n.close(); fout_mmu.close(); fout_P.close();
-	fout_wage.close();
+	save_vec(h_K,nk,"./adrian_results/Kgrid.csv");
+	save_vec(h_Z,"./adrian_results/Zgrid.csv");
+	save_vec(h_XXI,"./adrian_results/XXIgrid.csv");
+	save_vec(h_P,"./adrian_results/P.csv");
+	save_vec(h_V1_low,"./adrian_results/V1_low_guess.csv");
+	save_vec(h_V1_high,"./adrian_results/V1_high_guess.csv");
+	save_vec(h_V1_low,"./adrian_results/V1_low.csv");
+	save_vec(h_V1_high,"./adrian_results/V1_high.csv");
+	save_vec(h_flag,"./adrian_results/flag.csv");
+	save_vec(h_copt,"./adrian_results/copt.csv");
+	save_vec(h_kopt,"./adrian_results/kopt.csv");
+	save_vec(h_nopt,"./adrian_results/nopt.csv");
+	save_vec(h_mmuopt,"./adrian_results/mmuopt.csv");
+	save_vec(h_dopt,"./adrian_results/dopt.csv");
+	save_vec(h_wopt,"./adrian_results/wopt.csv");
 
 	// Export parameters to MATLAB
 	para.exportmatlab("./MATLAB/mypara.m");
+
 	return 0;
 }
 

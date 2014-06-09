@@ -107,8 +107,8 @@ __host__ __device__
 double newton_bracket(T func, const double x1, const double x2, double x0) {
 // Purpose: Tries to find a root for function named func. Its first derivative is given by func.prime().
 //			It is assumed that func(x1) and func(x2) are different in sign so a root exists within. x0 is the guess.
-	const int maxiter = 100;
-	const double tol = 1e-3;
+	const int newton_maxiter = 100;
+	const double newton_tol = 1e-3;
 	// Checking the bounds: they need to make sense. Or sometimes the bounds are solutions.
 	double f1 = func(x1);
 	double f2 = func(x2);
@@ -133,7 +133,7 @@ double newton_bracket(T func, const double x1, const double x2, double x0) {
 	double f = func(rts);
 	double df = func.prime(rts);
 
-	for (int iter = 0; iter < maxiter; iter++) { 
+	for (int iter = 0; iter < newton_maxiter; iter++) { 
 		if ( 
 			( ((rts-xh)*df-f)*((rts-xl)*df-f) > 0.0 )   ||	// Bisect if Newton step out of range
 			( abs(2.0*f) > abs(dxold*df)  ) // ... or step not decreasing fast enough
@@ -154,7 +154,7 @@ double newton_bracket(T func, const double x1, const double x2, double x0) {
 		};
 
 		// Check for convergence
-		if ( abs(dx)/(1+abs(rts+dx)) < tol ) return rts;
+		if ( abs(dx)/(1+abs(rts+dx)) < newton_tol ) return rts;
 
 		// Compute new f and df for next iteration
 		f = func(rts);
@@ -178,8 +178,8 @@ __host__ __device__
 double newton(T func, const double x1, const double x2, double x0) {
 // Purpose: Tries to find a root for function named func. Its first derivative is given by func.prime().
 //			func is only defined on [x1,x2] We "pull back" when outside. x0 is the guess.
-	const int maxiter = 50;
-	const double tol = 1e-5;
+	const int newton_maxiter = 70;
+	const double newton_tol = 1e-5;
 	// Initialize guess and other things
 	double x_old = x0;
 	double x = x0;
@@ -187,7 +187,7 @@ double newton(T func, const double x1, const double x2, double x0) {
 	double f2 = func(x2);
 	if (f1==0) return x1;
 	if (f2==0) return x2;
-	for (int iter = 0; iter < maxiter; iter++) { 
+	for (int iter = 0; iter < newton_maxiter; iter++) { 
 		x = x_old - func(x)/func.prime(x);
 
 		// Pull back if outside of support
@@ -199,7 +199,7 @@ double newton(T func, const double x1, const double x2, double x0) {
 		};
 
 		// Check for convergence
-		if ( (abs(x-x_old)/(1+abs(x_old))<tol) && (x>x1) && (x<x2) ) {
+		if ( (abs(x-x_old)/(1+abs(x_old))<newton_tol) && (x>x1) && (x<x2) ) {
 		   	return x;
 		} else {
 			x_old = x;
