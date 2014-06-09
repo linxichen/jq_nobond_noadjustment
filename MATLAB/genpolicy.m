@@ -156,3 +156,6 @@ figure
 surf(Zgrid,Kgrid,squeeze(mmucuda(:,:,ceil(nxi/2))),'EdgeColor','none','LineStyle','none','FaceLighting','phong')
 xlabel('TFP Shock'); ylabel('Capital'); zlabel('\mu_t')
 print -f -depsc2 '3dmmu_new.eps'
+
+%% Find peak of dist_K
+[~,ind] = max(dist_K(:));

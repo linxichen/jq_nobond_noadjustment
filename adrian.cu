@@ -615,7 +615,7 @@ int main(int argc, char ** argv)
 	linspace(9,11,nk,raw_pointer_cast(h_K.data()));
 
 	// Create shocks grids
-	host_vector<double> h_shockgrids(2*nz);
+	host_vector<double> h_shockgrid
 	double* h_shockgrids_ptr = raw_pointer_cast(h_shockgrids.data());
 	double* h_P_ptr = raw_pointer_cast(h_P.data());
 	gridgen_fptr linspace_fptr = &linspace; // select linspace as grid gen
@@ -744,7 +744,7 @@ int main(int argc, char ** argv)
 
 		cout << "diff is: "<< diff << endl;
 		cout << "dist is: "<< dist << endl;
-		cout << "Vplus1[100-1] (the spike) range is " << d_Vplus1_low[100-1] << ", " << d_Vplus1_high[100-1] << endl;
+		cout << "Vplus1[117,2,4] (the spike) range is " << d_Vplus1_low[117+2*nk+4*nk*nz] << ", " << d_Vplus1_high[117+2*nk+4*nk*nz] << endl;
 
 		// update correspondence
 		d_V1_low = d_Vplus1_low; d_V1_high = d_Vplus1_high;
@@ -769,7 +769,8 @@ int main(int argc, char ** argv)
 	cout << "Time= " << msecPerMatrixMul << " msec, iter= " << iter << endl;
 
 	// Copy back to host and print to file
-	h_V1_low = d_Vplus1_low; h_Vplus1_high = d_V1_high;
+	h_V1_low = d_V1_low; h_V1_high = d_V1_high;
+	h_EM1_low = d_EM1_low; h_EM1_high = d_EM1_high;
 	h_flag = d_flag;
 	
 	// Compute and save the decision variables
@@ -779,6 +780,14 @@ int main(int argc, char ** argv)
 	host_vector<double> h_mmuopt(nk*nz*nxxi);
 	host_vector<double> h_dopt(nk*nz*nxxi);
 	host_vector<double> h_wopt(nk*nz*nxxi);
+	host_vector<double> h_kk_1(nm1);
+	host_vector<double> h_kk_2(nm1);
+	host_vector<double> h_lhs1_1(nm1);
+	host_vector<double> h_lhs1_2(nm1);
+	host_vector<double> h_rhslow_1(nm1);
+	host_vector<double> h_rhshigh_1(nm1);
+	host_vector<double> h_rhslow_2(nm1);
+	host_vector<double> h_rhshigh_2(nm1);
 	state_struct s;
 	control_struct u;
 	for (int i_k=0; i_k<nk; i_k++) {
@@ -817,6 +826,30 @@ int main(int argc, char ** argv)
 					h_dopt[index] = u.d;
 					h_wopt[index] = u.w;
 				};
+
+				// Zoom in at the pike
+				double step = (h_V1_high[index] - h_V1-low[index])/nm1;
+				if ( (i_k==117) && (i_z==2) && (i_xxi==4)  ) {
+					control_struct u1,u2;
+					for (int i_m = 0; i_m < nm1; i_m++) {
+						m1 = h_V1_low[index] + i_m*step;
+						s.load(k,z,xxi,m1,zkttheta);
+						u1.compute(s,para,1);
+						u2.compute(s,para,0);
+						h_kk_1[i_m] = u1.kplus;
+						h_kk_2[i_m] = u2.kplus;
+						h_lhs1_1[i_m] = u1.lhs1;
+						h_lhs1_2[i_m] = u2.lhs1;
+
+						// find euler related stuff
+						int i_kplus_1 = fit2grid(u1.kplus,nk,h_K.data());
+						int i_kplus_2 = fit2grid(u2.kplus,nk,h_K.data());
+						h_rhslow_1[i_m] = para.bbeta*h_EM1_low[i_kplus_1+i_z*nk+i_xxi*nk*nz];
+						h_rhshigh_1[i_m] = para.bbeta*h_EM1_right[i_kplus_1+i_z*nk+i_xxi*nk*nz];
+						h_rhslow_2[i_m] = para.bbeta*h_EM1_low[i_kplus_2+i_z*nk+i_xxi*nk*nz];
+						h_rhshigh_2[i_m] = para.bbeta*h_EM1_right[i_kplus_2+i_z*nk+i_xxi*nk*nz];
+					};
+				};
 			};
 		};
 	};
@@ -836,6 +869,14 @@ int main(int argc, char ** argv)
 	save_vec(h_mmuopt,"./adrian_results/mmuopt.csv");
 	save_vec(h_dopt,"./adrian_results/dopt.csv");
 	save_vec(h_wopt,"./adrian_results/wopt.csv");
+	save_vec(h_kk_1,"./adrian_results/kk_1.csv");
+	save_vec(h_kk_2,"./adrian_results/kk_2.csv");
+	save_vec(h_lhs1_1,"./adrian_results/lhs1_1.csv");
+	save_vec(h_lhs1_2,"./adrian_results/lhs1_2.csv");
+	save_vec(h_rhslow_1,"./adrian_results/rhslow_1.csv");
+	save_vec(h_rhshigh_1,"./adrian_results/rhshigh_1.csv");
+	save_vec(h_rhslow_2,"./adrian_results/rhslow_2.csv");
+	save_vec(h_rhshigh_2,"./adrian_results/rhshigh_2.csv");
 
 	// Export parameters to MATLAB
 	para.exportmatlab("./MATLAB/mypara.m");
