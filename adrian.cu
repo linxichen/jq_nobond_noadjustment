@@ -615,7 +615,7 @@ int main(int argc, char ** argv)
 	linspace(9,11,nk,raw_pointer_cast(h_K.data()));
 
 	// Create shocks grids
-	host_vector<double> h_shockgrid
+	host_vector<double> h_shockgrids(2*nz);
 	double* h_shockgrids_ptr = raw_pointer_cast(h_shockgrids.data());
 	double* h_P_ptr = raw_pointer_cast(h_P.data());
 	gridgen_fptr linspace_fptr = &linspace; // select linspace as grid gen
@@ -828,7 +828,7 @@ int main(int argc, char ** argv)
 				};
 
 				// Zoom in at the pike
-				double step = (h_V1_high[index] - h_V1-low[index])/nm1;
+				double step = (h_V1_high[index] - h_V1_low[index])/nm1;
 				if ( (i_k==117) && (i_z==2) && (i_xxi==4)  ) {
 					control_struct u1,u2;
 					for (int i_m = 0; i_m < nm1; i_m++) {
@@ -845,9 +845,9 @@ int main(int argc, char ** argv)
 						int i_kplus_1 = fit2grid(u1.kplus,nk,h_K.data());
 						int i_kplus_2 = fit2grid(u2.kplus,nk,h_K.data());
 						h_rhslow_1[i_m] = para.bbeta*h_EM1_low[i_kplus_1+i_z*nk+i_xxi*nk*nz];
-						h_rhshigh_1[i_m] = para.bbeta*h_EM1_right[i_kplus_1+i_z*nk+i_xxi*nk*nz];
+						h_rhshigh_1[i_m] = para.bbeta*h_EM1_high[i_kplus_1+i_z*nk+i_xxi*nk*nz];
 						h_rhslow_2[i_m] = para.bbeta*h_EM1_low[i_kplus_2+i_z*nk+i_xxi*nk*nz];
-						h_rhshigh_2[i_m] = para.bbeta*h_EM1_right[i_kplus_2+i_z*nk+i_xxi*nk*nz];
+						h_rhshigh_2[i_m] = para.bbeta*h_EM1_high[i_kplus_2+i_z*nk+i_xxi*nk*nz];
 					};
 				};
 			};
