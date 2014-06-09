@@ -9,7 +9,7 @@
 #define nxxi 7
 #define nm1 1024 
 #define tol 1e-6
-#define maxiter 2000
+#define maxiter 250
 #define kwidth 1.2
 #define mkwidth 20.0 
 
