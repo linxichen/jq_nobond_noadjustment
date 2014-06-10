@@ -33,18 +33,25 @@ CXXFLAGS  = -O3 -I$(ICUDA) -I$(ICUDA_MAC) -I$(ICPP_MAC) -I$(ILAPACK) -DHAVE_LAPA
 LDFLAGS  += -lcublas -lcurand -lcudart -L$(LCUDA) -L$(LCUDA_MAC) -L$(LCPP_MAC) -lnlopt -larmadillo -lopenblas -llapacke -llapack
 
 # List Executables and Objects
-EXEC = adrian 
+EXEC = adrian vfi 
 OBJECTS = cppcode.o
-OBJECTS1 = cppcodemulti.o
 
 all : $(EXEC)
 
 # Link objects from CUDA and C++ codes
-$(EXEC) : adrian.o $(OBJECTS) 
+adrian : adrian.o $(OBJECTS) 
 	$(CXX) -o $@ $? $(LDFLAGS)
 
 # Compile CUDA code
 adrian.o : adrian.cu 
+	$(NVCC) $(NVCCFLAGS) $(CXXFLAGS) -c $<  
+
+# Link objects from CUDA and C++ codes
+vfi : vfi.o $(OBJECTS) 
+	$(CXX) -o $@ $? $(LDFLAGS)
+
+# Compile CUDA code
+vfi.o : vfi.cu 
 	$(NVCC) $(NVCCFLAGS) $(CXXFLAGS) -c $<  
 
 # Compile C++ code
@@ -61,7 +68,10 @@ veryclean :
 	rm -f $(EXEC)
 
 run : all
-	./$(EXEC)
+	./adrian
+
+runvfi : vfi
+	./vfi
 
 doc : README.md
 	$(MD) -o README.html README.md

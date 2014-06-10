@@ -92,7 +92,7 @@ void save_vec(T vec, std::string filename ) {
 	int size = vec.size();
 	std::ofstream fileout(filename.c_str(), std::ofstream::trunc);
 	for (int i = 0; i < size; i++) {
-		fileout << vec[i] << '\n';
+		fileout << std::setprecision(16) << vec[i] << '\n';
 	};
 	fileout.close();
 	std::cout << "Done!" << std::endl;
