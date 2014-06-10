@@ -178,7 +178,7 @@ __host__ __device__
 double newton(T func, const double x1, const double x2, double x0) {
 // Purpose: Tries to find a root for function named func. Its first derivative is given by func.prime().
 //			func is only defined on [x1,x2] We "pull back" when outside. x0 is the guess.
-	const int newton_maxiter = 70;
+	const int newton_maxiter = 30;
 	const double newton_tol = 1e-5;
 	// Initialize guess and other things
 	double x_old = x0;
@@ -191,15 +191,15 @@ double newton(T func, const double x1, const double x2, double x0) {
 		x = x_old - func(x)/func.prime(x);
 
 		// Pull back if outside of support
-		if (x<x1) {
-			x = x1;
+		if (x<=x1) {
+			return -51709394.2;
 		};
-		if (x>x2) {
-			x = x2;
+		if (x>=x2) {
+			return -51709394.2;
 		};
 
 		// Check for convergence
-		if ( (abs(x-x_old)/(1+abs(x_old))<newton_tol) && (x>x1) && (x<x2) ) {
+		if ( (abs(x-x_old)/(1+abs(x_old))<newton_tol) && (abs(func(x)) < newton_tol) ) {
 		   	return x;
 		} else {
 			x_old = x;

@@ -159,3 +159,15 @@ print -f -depsc2 '3dmmu_new.eps'
 
 %% Find peak of dist_K
 [~,ind] = max(dist_K(:));
+[i_k,i_z,i_xxi] = ind2sub([nk nz nxxi],ind);
+
+kk_1 = csvread('../adrian_results/kk_1.csv');
+kk_2 = csvread('../adrian_results/kk_2.csv');
+lhs1_1 = csvread('../adrian_results/lhs1_1.csv');
+lhs1_2 = csvread('../adrian_results/lhs1_2.csv');
+rhslow_1 = csvread('../adrian_results/rhslow_1.csv');
+rhshigh_1 = csvread('../adrian_results/rhshigh_1.csv');
+rhslow_2 = csvread('../adrian_results/rhslow_2.csv');
+rhshigh_2 = csvread('../adrian_results/rhshigh_2.csv');
+nn_1 = csvread('../adrian_results/nn_1.csv');
+nn_2 = csvread('../adrian_results/nn_2.csv');

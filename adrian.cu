@@ -7,9 +7,9 @@
 #define nk 512
 #define nz 7
 #define nxxi 7
-#define nm1 1024 
+#define nm1 2560 
 #define tol 1e-6
-#define maxiter 250
+#define maxiter 2500
 #define kwidth 1.2
 #define mkwidth 20.0 
 
@@ -312,7 +312,7 @@ struct control_struct {
 			double xxi = state.xxi;
 			double m1 = state.m1;
 			double zkttheta = state.zkttheta;
-			n = newton(case1_hour(k,z,xxi,m1,zkttheta,para),0.0,1.0,0.3);
+			n = newton(case1_hour(k,z,xxi,m1,zkttheta,para),1e-5,1.0-1e-5,0.3);
 			Y = zkttheta*pow(n,1-para.ttheta);
 			double MPK = para.ttheta*Y/k;
 			kplus = Y/xxi;
@@ -330,7 +330,7 @@ struct control_struct {
 			double m1 = state.m1;
 			double zkttheta = state.zkttheta;
 			// Case 2: Not Binding
-			n = newton(case2_hour(k,z,xxi,m1,zkttheta,para),0.0,1.0,0.3);
+			n = newton(case2_hour(k,z,xxi,m1,zkttheta,para),1e-5,1.0-1e-5,0.3);
 			Y = zkttheta*pow(n,1-para.ttheta);
 			double MPK = para.ttheta*Y/k;
 			mmu = 0;
@@ -355,7 +355,7 @@ bool eureka(state_struct s, control_struct & u1, control_struct & u2, para_struc
 	if (u1.c <= 0) {
 		goto case2;
 	};
-	if (u1.kplus < 0) {
+	if (u1.kplus <= 0) {
 		goto case2;
 	};
 	// if (u.kplus < K[0]) {
@@ -626,7 +626,7 @@ int main(int argc, char ** argv)
 	};
 
 	// Obtain initial guess from linear solution
-	guess_linear(h_K, h_Z, h_XXI, h_V1_low, h_V1_high, para, 1/1.2, 1.2) ;
+	guess_linear(h_K, h_Z, h_XXI, h_V1_low, h_V1_high, para, 0.3, 3) ;
 
 	// Copy to the device
 	device_vector<double> d_K = h_K;
@@ -788,8 +788,11 @@ int main(int argc, char ** argv)
 	host_vector<double> h_rhshigh_1(nm1);
 	host_vector<double> h_rhslow_2(nm1);
 	host_vector<double> h_rhshigh_2(nm1);
+	host_vector<double> h_nn_1(nm1);
+	host_vector<double> h_nn_2(nm1);
 	state_struct s;
 	control_struct u;
+
 	for (int i_k=0; i_k<nk; i_k++) {
 		for (int i_z = 0; i_z < nz; i_z++) {
 			for (int i_xxi=0; i_xxi < nxxi; i_xxi++) {
@@ -805,8 +808,7 @@ int main(int argc, char ** argv)
 				if (
 						(s.xxi*u.kplus > u.Y) &&
 						(u.c > 0) && 
-						(u.kplus >= h_K[0]) &&
-						(u.kplus <= h_K[nk-1]) &&
+						(u.kplus > 0) &&
 						(u.n > 0) &&
 						(u.n < 1) 
 				   )
@@ -828,11 +830,11 @@ int main(int argc, char ** argv)
 				};
 
 				// Zoom in at the pike
-				double step = (h_V1_high[index] - h_V1_low[index])/nm1;
+				double step = (h_V1_high[index] - h_V1_low[index])/double(nm1);
 				if ( (i_k==117) && (i_z==2) && (i_xxi==4)  ) {
 					control_struct u1,u2;
 					for (int i_m = 0; i_m < nm1; i_m++) {
-						m1 = h_V1_low[index] + i_m*step;
+						m1 = h_V1_low[index] + double(i_m)*step;
 						s.load(k,z,xxi,m1,zkttheta);
 						u1.compute(s,para,1);
 						u2.compute(s,para,0);
@@ -840,6 +842,8 @@ int main(int argc, char ** argv)
 						h_kk_2[i_m] = u2.kplus;
 						h_lhs1_1[i_m] = u1.lhs1;
 						h_lhs1_2[i_m] = u2.lhs1;
+						h_nn_1[i_m] = u1.n;
+						h_nn_2[i_m] = u2.n;
 
 						// find euler related stuff
 						int i_kplus_1 = fit2grid(u1.kplus,nk,h_K.data());
@@ -871,6 +875,8 @@ int main(int argc, char ** argv)
 	save_vec(h_wopt,"./adrian_results/wopt.csv");
 	save_vec(h_kk_1,"./adrian_results/kk_1.csv");
 	save_vec(h_kk_2,"./adrian_results/kk_2.csv");
+	save_vec(h_nn_1,"./adrian_results/nn_1.csv");
+	save_vec(h_nn_2,"./adrian_results/nn_2.csv");
 	save_vec(h_lhs1_1,"./adrian_results/lhs1_1.csv");
 	save_vec(h_lhs1_2,"./adrian_results/lhs1_2.csv");
 	save_vec(h_rhslow_1,"./adrian_results/rhslow_1.csv");
@@ -883,5 +889,3 @@ int main(int argc, char ** argv)
 
 	return 0;
 }
-
-
