@@ -4,10 +4,10 @@
  * is the asymmetry of policy functions.
  */
 
-#define nk 512
+#define nk 256
 #define nz 7
 #define nxxi 7
-#define nm1 2560 
+#define nm1 2560
 #define tol 1e-6
 #define maxiter 2500
 #define kwidth 1.2
@@ -320,7 +320,7 @@ struct control_struct {
 			mmu = 1-(m1*c-1+para.ddelta)/MPK;	
 			w = (1-mmu)*(1-para.ttheta)*Y/n;
 			lhs1 = (1-mmu*xxi)/c;
-			d = para.aalpha*c/(1-n);
+			d = c - w*n;
 		};
 
 		if (binding == 0) {
@@ -338,7 +338,7 @@ struct control_struct {
 			kplus = (1-para.ddelta)*k + Y - c;
 			w = (1-para.ttheta)*Y/n;
 			lhs1 = (1-mmu*xxi)/c;
-			d = para.aalpha*c/(1-n);
+			d = c - w*n;
 		};
 	};
 };
@@ -390,7 +390,7 @@ case2: // Not Binding
 	if (u2.c <= 0) {
 		return false;
 	};
-	if (u2.kplus < 0) {
+	if (u2.kplus <= 0) {
 		return false;
 	};
 	// if (u2.kplus < K[0]) {
@@ -552,7 +552,7 @@ int main(int argc, char ** argv)
 	para.ttheta = 0.36;
 	para.kkappa = 0.1460;
 	para.ttau = 0.3500;
-	para.xxibar = 0.1;
+	para.xxibar = 0.12;
 	para.zbar = 1.0;
 	para.rrhozz = 0.9457;
 	para.rrhoxxiz = 0.0321;
@@ -830,7 +830,7 @@ int main(int argc, char ** argv)
 				};
 
 				// Zoom in at the pike
-				double step = (h_V1_high[index] - h_V1_low[index])/double(nm1);
+				double step = (h_V1_high[index] - h_V1_low[index])/double(nm1-1);
 				if ( (i_k==117) && (i_z==2) && (i_xxi==4)  ) {
 					control_struct u1,u2;
 					for (int i_m = 0; i_m < nm1; i_m++) {
