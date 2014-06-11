@@ -1,7 +1,7 @@
-#define nk 2560
+#define nk 10240
 #define nm1 2560
-#define nz 7
-#define nxxi 7
+#define nz 13
+#define nxxi 13
 #define tol 1e-6
 #define maxiter 2500
 #define kwidth 1.2
@@ -216,12 +216,28 @@ struct state_struct {
 	// Data member
 	double k, z, xxi, zkttheta, kplus;
 
+	// Constructor
+	__host__ __device__
+	state_struct(double _k, double _z, double _xxi, double _zkttheta, double _kplus) {
+		k = _k;
+		z = _z;
+		xxi = _xxi;
+		zkttheta = _zkttheta;
+		kplus = _kplus;
+	};
+	// Pack Things into
 	__host__ __device__
 	void load(double _k, double _z, double _xxi, double _zkttheta, double _kplus) {
 		k = _k;
 		z = _z;
 		xxi = _xxi;
 		zkttheta = _zkttheta;
+		kplus = _kplus;
+	};
+
+	// Replace only the kplus
+	__host__ __device__
+	void replace(double _kplus) {
 		kplus = _kplus;
 	};
 };
@@ -286,6 +302,113 @@ struct control_struct {
 	};
 };
 
+/// This function finds the value of RHS given k', k, z, xxi
+__host__ __device__
+double rhsvalue (state_struct s, int i_z, int i_xxi, int i_kplus, double* EV, para_struct para) {
+	double temp1 = -9999999;
+	double temp2 = -9999999;
+	control_struct u1, u2;
+	u1.compute(s,para,1);
+	u2.compute(s,para,0);
+	if (
+			(u1.mmu >= 0) &&
+			(u1.c > 0 ) &&
+			(u1.n > 0 ) &&
+			(u1.n < 1 )
+	   )
+	{
+		temp1 = log(u1.c) + para.aalpha*log(1-u1.n) + para.bbeta*EV[i_kplus+i_z*nk+i_xxi*nk*nz];
+	};
+	if (
+			(s.xxi*s.kplus > u2.Y) &&
+			(u2.c > 0 ) &&
+			(u2.n > 0 ) &&
+			(u2.n < 1 )
+	   )
+	{
+		temp2 = log(u2.c) + para.aalpha*log(1-u2.n) + para.bbeta*EV[i_kplus+i_z*nk+i_xxi*nk*nz];
+	};
+	return max(temp1,temp2);
+};
+// This find the max using binary search and assumes concavity
+__host__ __device__
+void concavemax(double k, double z, double xxi, double zkttheta, const int left_ind, const int right_ind, const int i_k,const int i_z, const int i_xxi, 
+		double* K, double* EV, double* Vplus, int* koptind, para_struct para) {
+	int index = i_k + i_z*nk + i_xxi*nk*nz;
+
+	if (right_ind-left_ind==1) {
+		double left_value, right_value;
+		left_value = rhsvalue(state_struct(k,z,xxi,zkttheta,K[left_ind]),i_z,i_xxi,left_ind, EV, para);
+		right_value = rhsvalue(state_struct(k,z,xxi,zkttheta,K[right_ind]),i_z,i_xxi,right_ind, EV, para);
+		if (left_value>right_value) {
+			Vplus[index] = left_value;
+			koptind[index] = left_ind;
+		} else {
+			Vplus[index] = right_value;
+			koptind[index] = right_ind;
+		};
+	} else if (right_ind-left_ind==2) {
+		double value1 = rhsvalue(state_struct(k,z,xxi,zkttheta,K[left_ind]),i_z,i_xxi,left_ind, EV, para);
+		double value2 = rhsvalue(state_struct(k,z,xxi,zkttheta,K[left_ind+1]),i_z,i_xxi,left_ind+1, EV, para);
+		double value3 = rhsvalue(state_struct(k,z,xxi,zkttheta,K[right_ind]),i_z,i_xxi,right_ind, EV, para);
+		if (value1 < value2) {
+			if (value2 < value3) {
+				Vplus[index] = value3;
+				koptind[index] = right_ind;
+			} else {
+				Vplus[index] = value2;
+				koptind[index] = left_ind+1;
+			}
+		} else {
+			if (value1 < value3) {
+				Vplus[index] = value3;
+				koptind[index] = right_ind;
+			} else { 
+				Vplus[index] = value1;
+				koptind[index] = left_ind;
+			}
+		}
+	} else {
+		int ind1 = left_ind; int ind4 = right_ind;
+		int ind2, ind3;
+		double value1, value2, value3;
+		while (ind4 - ind1 > 2) {
+			ind2 = (ind1+ind4)/2;
+			ind3 = ind2 + 1;
+			value2 = rhsvalue(state_struct(k,z,xxi,zkttheta,K[ind2]),i_z,i_xxi,ind2, EV, para);
+			value3 = rhsvalue(state_struct(k,z,xxi,zkttheta,K[ind3]),i_z,i_xxi,ind3, EV, para);
+			if (value2 < value3) {
+				ind1 = ind2;
+			} else {
+				ind4 = ind3;
+			};
+		};
+
+		// Now the number of candidates is reduced to three
+		value1 = rhsvalue(state_struct(k,z,xxi,zkttheta,K[ind1]),i_z,i_xxi,ind1, EV, para);
+		value2 = rhsvalue(state_struct(k,z,xxi,zkttheta,K[ind4-1]),i_z,i_xxi,ind4-1, EV, para);
+		value3 = rhsvalue(state_struct(k,z,xxi,zkttheta,K[ind4]),i_z,i_xxi,ind4, EV, para);
+
+		if (value1 < value2) {
+			if (value2 < value3) {
+				Vplus[index] = value3;
+				koptind[index] = ind4;
+			} else {
+				Vplus[index] = value2;
+				koptind[index] = ind4-1;
+			}
+		} else {
+			if (value1 < value3) {
+				Vplus[index] = value3;
+				koptind[index] = ind4;
+			} else { 
+				Vplus[index] = value1;
+				koptind[index] = ind1;
+			}
+		}
+	}
+};
+
 // This functor yields RHS for each (k', k, z). Follwing examples in Thrust doc
 struct RHS 
 {
@@ -330,49 +453,9 @@ struct RHS
 		// Find and construct state and control, otherwise they won't update in the for loop
 		double k =K[i_k]; double z=Z[i_z]; double xxi=XXI[i_xxi];
 		double zkttheta = z*pow(k,para.ttheta); 
-		state_struct s;
-		control_struct u1, u2;
 
-		// Loop through over kplus
-		int i_kplus_max = 0;
-		double Vmax = -9999999999;
-		for (int i_kplus = 0; i_kplus < nk; i_kplus++) {
-			double kplus = K[i_kplus];
-			double temp1 = -9999999;
-			double temp2 = -9999999;
-			s.load(k,z,xxi,zkttheta,kplus);
-			u1.compute(s,para,1);
-			u2.compute(s,para,0);
-			if (
-					(u1.mmu >= 0) &&
-					(u1.c > 0 ) &&
-					(u1.n > 0 ) &&
-					(u1.n < 1 )
-			   )
-			{
-				temp1 = log(u1.c) + para.aalpha*log(1-u1.n) + para.bbeta*EV[i_kplus+i_z*nk+i_xxi*nk*nz];
-			};
-			if (
-					(s.xxi*s.kplus > u2.Y) &&
-					(u2.c > 0 ) &&
-					(u2.n > 0 ) &&
-					(u2.n < 1 )
-			   )
-			{
-				temp2 = log(u2.c) + para.aalpha*log(1-u2.n) + para.bbeta*EV[i_kplus+i_z*nk+i_xxi*nk*nz];
-			};
-
-			// Check for whether max
-			double current_temp = max(temp1,temp2);
-			if (current_temp > Vmax) {
-				Vmax = current_temp;
-				i_kplus_max = i_kplus;
-			};
-		};
-
-		// Update Vs
-		Vplus[index] = Vmax;
-		koptind[index] = i_kplus_max;
+		// Exploit concavity to update V
+		concavemax(k, z, xxi, zkttheta, i_k, nk, i_k, i_z, i_xxi, K, EV, Vplus, koptind, para);
 	};
 };	
 
@@ -593,7 +676,6 @@ int main(int argc, char ** argv)
 	host_vector<double> h_rhshigh_2(nm1);
 	host_vector<double> h_nn_1(nm1);
 	host_vector<double> h_nn_2(nm1);
-	state_struct s;
 	control_struct u;
 
 	for (int i_k=0; i_k<nk; i_k++) {
@@ -604,7 +686,7 @@ int main(int argc, char ** argv)
 				double z=h_Z[i_z]; double xxi=h_XXI[i_xxi];
 				double kplus = h_K[h_koptind[index]];
 				double zkttheta = z*pow(k,para.ttheta);
-				s.load(k,z,xxi,zkttheta,kplus);
+				state_struct s(k,z,xxi,zkttheta,kplus);
 
 				// Try not binding first
 				u.compute(s,para,0);
