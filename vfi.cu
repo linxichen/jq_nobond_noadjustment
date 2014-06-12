@@ -1,4 +1,4 @@
-#define nk 2048
+#define nk 25600
 #define nm1 2560
 #define nz 13
 #define nxxi 13
@@ -462,7 +462,7 @@ struct RHS
 		double zkttheta = z*pow(k,para.ttheta); 
 
 		// Exploit concavity to update V
-		concavemax(k, z, xxi, zkttheta, i_k, nk, i_k, i_z, i_xxi, K, EV, Vplus, koptind, para);
+		concavemax(k, z, xxi, zkttheta, 0, nk-1, i_k, i_z, i_xxi, K, EV, Vplus, koptind, para);
 	};
 };	
 
@@ -671,18 +671,8 @@ int main(int argc, char ** argv)
 	host_vector<double> h_kopt(nk*nz*nxxi);
 	host_vector<double> h_nopt(nk*nz*nxxi);
 	host_vector<double> h_mmuopt(nk*nz*nxxi);
-	host_vector<double> h_dopt(nk*nz*nxxi);
-	host_vector<double> h_wopt(nk*nz*nxxi);
-	host_vector<double> h_kk_1(nm1);
-	host_vector<double> h_kk_2(nm1);
-	host_vector<double> h_lhs1_1(nm1);
-	host_vector<double> h_lhs1_2(nm1);
-	host_vector<double> h_rhslow_1(nm1);
-	host_vector<double> h_rhshigh_1(nm1);
-	host_vector<double> h_rhslow_2(nm1);
-	host_vector<double> h_rhshigh_2(nm1);
-	host_vector<double> h_nn_1(nm1);
-	host_vector<double> h_nn_2(nm1);
+	// host_vector<double> h_dopt(nk*nz*nxxi);
+	// host_vector<double> h_wopt(nk*nz*nxxi);
 
 	for (int i_k=0; i_k<nk; i_k++) {
 		for (int i_z = 0; i_z < nz; i_z++) {
@@ -712,32 +702,6 @@ int main(int argc, char ** argv)
 					h_nopt[index] = u.n;
 					h_mmuopt[index] = u.mmu;
 				};
-
-				// // Zoom in at the pike
-				// double step = (h_V1_high[index] - h_V1_low[index])/double(nm1-1);
-				// if ( (i_k==117) && (i_z==2) && (i_xxi==4)  ) {
-				// 	control_struct u1,u2;
-				// 	for (int i_m = 0; i_m < nm1; i_m++) {
-				// 		m1 = h_V1_low[index] + double(i_m)*step;
-				// 		s.load(k,z,xxi,m1,zkttheta);
-				// 		u1.compute(s,para,1);
-				// 		u2.compute(s,para,0);
-				// 		h_kk_1[i_m] = u1.kplus;
-				// 		h_kk_2[i_m] = u2.kplus;
-				// 		h_lhs1_1[i_m] = u1.lhs1;
-				// 		h_lhs1_2[i_m] = u2.lhs1;
-				// 		h_nn_1[i_m] = u1.n;
-				// 		h_nn_2[i_m] = u2.n;
-
-				// 		// find euler related stuff
-				// 		int i_kplus_1 = fit2grid(u1.kplus,nk,h_K.data());
-				// 		int i_kplus_2 = fit2grid(u2.kplus,nk,h_K.data());
-				// 		h_rhslow_1[i_m] = para.bbeta*h_EM1_low[i_kplus_1+i_z*nk+i_xxi*nk*nz];
-				// 		h_rhshigh_1[i_m] = para.bbeta*h_EM1_high[i_kplus_1+i_z*nk+i_xxi*nk*nz];
-				// 		h_rhslow_2[i_m] = para.bbeta*h_EM1_low[i_kplus_2+i_z*nk+i_xxi*nk*nz];
-				// 		h_rhshigh_2[i_m] = para.bbeta*h_EM1_high[i_kplus_2+i_z*nk+i_xxi*nk*nz];
-				// 	};
-				// };
 			};
 		};
 	};
@@ -751,6 +715,7 @@ int main(int argc, char ** argv)
 	save_vec(h_kopt,"./vfi_results/kopt.csv");
 	save_vec(h_nopt,"./vfi_results/nopt.csv");
 	save_vec(h_mmuopt,"./vfi_results/mmuopt.csv");
+	cout << "Policy functions output completed." << endl;
 
 	// Export parameters to MATLAB
 	para.exportmatlab("./MATLAB/vfi_para.m");
@@ -767,7 +732,7 @@ int main(int argc, char ** argv)
 				for (int i_zplus = 0; i_zplus < nz; i_zplus++) {
 					for (int i_xxiplus = 0; i_xxiplus < nxxi; i_xxiplus++) {
 						int indexplus = i_kplus+i_zplus*nk+i_xxiplus*nk*nz;
-						sum += para.bbeta*h_P[i_z + i_xxi*nz + i_zplus*nz*nxxi + i_xxiplus*nz*nxxi*nz]*(1 - para.ddelta + (1-h_mmuopt[indexplus])*para.ttheta*h_Z[i_zplus]*pow(h_K[i_kplus],para.ttheta-1)*pow(h_nopt[indexplus],1-para.ttheta));
+						sum += para.bbeta*h_P[i_z + i_xxi*nz + i_zplus*nz*nxxi + i_xxiplus*nz*nxxi*nz]*(1 - para.ddelta + (1-h_mmuopt[indexplus])*para.ttheta*h_Z[i_zplus]*pow(h_K[i_kplus],para.ttheta-1)*pow(h_nopt[indexplus],1-para.ttheta))/h_copt[indexplus];
 					};
 				};
 				double ctmr = (1-h_mmuopt[index]*h_XXI[i_xxi])/sum;
