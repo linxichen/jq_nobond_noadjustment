@@ -207,3 +207,74 @@ double newton(T func, const double x1, const double x2, double x0) {
 	};
 	return -51709394.2;
 };
+
+// Evaluate Chebychev polynomial of any degree
+__host__ __device__
+double chebypoly(const int p, const double x) {
+	switch (p) {
+		case 0: // 0-th order Chebyshev Polynomial
+			return 1;
+		case 1:
+			return x;
+		case 2:
+			return 2*x*x - 1;
+		case 3:
+			return 4*x*x*x - 3*x;
+	}
+	
+	// When p>=4, apply the recurrence relation
+	double lag1 = 4*x*x*x -3*x;
+	double lag2 = 2*x*x - 1;
+	double lag0;
+	int distance = p - 3;
+	while (distance >= 1) {
+		lag0 = 2*x*lag1 - lag2;
+		lag2 = lag1;
+		lag1 = lag0;
+		distance--;
+	};
+	return lag0;
+};
+
+// Evaluate Chebychev polynomial of any degree
+__host__ __device__
+int chebyroots(const int p, double* roots) {
+	for (int i=0; i<p; i++) {
+		double stuff = p - 0.5 - 1*i;
+		roots[i] = cos(M_PI*(stuff)/(p));
+	};
+
+	// Account for the fact that cos(pi/2) is not exactly zeros
+	if (p%2) {
+		roots[(p-1)/2] = 0;
+	};
+	return 0;
+};
+
+// Evaluate Chebychev approximation of any degree
+__host__ __device__
+double chebyeval(int p, double x, double* coeff) {
+	// Note that coefficient vector has p+1 values
+	double sum = 0;
+	for (int i=0; i<=p; i++) {
+		sum += coeff[i]*chebypoly(i,x);	
+	};
+	return sum;
+};
+
+// This is a very model-specific version of the function it should be.
+// Future modification needs to deal with the creation of temporary array somehow.
+// __host__ __device__
+// double chebyeval_multi ( double k_cheby, double z_cheby, double xxi_cheby, double* coeff ) {
+// 	double eval = 0;
+// 	for (int t_xxi=0; t_xxi <= pxxi; t_xxi++) {
+// 		for (int t_z=0; t_z <= pz; t_z++) {
+// 			for (int t_k=0; t_k <=pk; t_k++ ) {
+// 				eval += coeff[t_k+t_z*(1+pk)+t_xxi*(1+pk)*(1+pz)]*
+// 				        chebypoly(t_k,k_cheby)*chebypoly(t_z,z_cheby)*chebypoly(t_xxi,xxi_cheby);
+// 			};
+// 		};
+// 	};
+// 	return eval;
+// };
+
