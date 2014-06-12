@@ -44,334 +44,177 @@ using namespace thrust;
 #define mkwidth 15.0 // has to be a double 
 #define llambda 0.5
 
-// Parameters from the AER paper
-#define aalpha 2.7189
-#define bbeta 0.9825
-#define ddelta 0.025
-#define ttheta 0.36
-// #define kkappa 0.1460
-#define kkappa 0.0265
-// #define ttau 0.3500
-// #define xxibar 0.1634
-// #define xxibar 0.1634
-// #define xxibar 0.02695
-#define xxibar 0.085
-#define zbar 1.0
-// #define dbar 2.56514
-#define uupsilon 1.0
-#define oomega 1.4
-// #define aalpha 1.3659
-#define rrhozz 0.8147
-#define rrhozxxi -0.1234
-#define rrhoxxiz 0.15
-#define rrhoxxixxi 0.8393
-#define ssigmaz 0.0042
-#define ssigmaxxi 0.0072
+// Define an class that contains parameters and steady states
+struct para_struct {
+	// Model parameters
+	double aalpha;
+	double bbeta ;
+	double ddelta;
+	double ttheta;
+	double kkappa;
+	double ttau  ;
+	double xxibar;
+	double zbar  ;
+	double dbar  ;
+	double rrhozz;
+	double rrhozxxi;
+	double rrhoxxiz;
+	double rrhoxxixxi;
+	double var_epsz;
+	double var_epsxxi;
+	double A[4];
+	double Ssigma_e[4];
 
-// Evaluate Chebychev polynomial of any degree
-__host__ __device__
-double chebypoly(const int p, const double x) {
-	switch (p) {
-		case 0: // 0-th order Chebyshev Polynomial
-			return 1;
-		case 1:
-			return x;
-		case 2:
-			return 2*x*x - 1;
-		case 3:
-			return 4*x*x*x - 3*x;
-	}
-	
-	// When p>=4, apply the recurrence relation
-	double lag1 = 4*x*x*x -3*x;
-	double lag2 = 2*x*x - 1;
-	double lag0;
-	int distance = p - 3;
-	while (distance >= 1) {
-		lag0 = 2*x*lag1 - lag2;
-		lag2 = lag1;
-		lag1 = lag0;
-		distance--;
-	};
-	return lag0;
-};
+	// Steady States
+	double kss;
+	double nss;
+	double css;
+	double wss;
+	double dss;
+	double mmuss;
+	double mkss;
+	double yss;
 
-// Evaluate Chebychev polynomial of any degree
-__host__ __device__
-int chebyroots_cuda(const int p, double* roots) {
-	for (int i=0; i<p; i++) {
-		double stuff = p - 0.5 - 1*i;
-		roots[i] = cos(M_PI*(stuff)/(p));
+
+	// Find steady state and find aalpha based steady state target
+	__host__ __device__
+	void complete() {
+		// Fill A and Ssigma_e
+		A[0] = rrhozz; A[2] = rrhozxxi;
+		A[1] = rrhoxxiz; A[3] = rrhoxxixxi;
+		Ssigma_e[0] = var_epsz*var_epsz;
+		Ssigma_e[3] = var_epsxxi*var_epsxxi;
+
+		// Find aalpha based on SS computation
+		double kovern = pow(xxibar,1/(ttheta-1));
+		double covern = pow(kovern,ttheta) - ddelta*kovern;
+		mmuss = 1 - ( bbeta*(1-ddelta)-1+xxibar )/( xxibar*(1-bbeta*ttheta)  );
+		aalpha = double(0.7/0.3)*(1/covern)*(1-mmuss)*(1-ttheta)*pow(kovern,ttheta);
+		double G = ( (1-mmuss)*(1-ttheta)*pow(kovern,ttheta) ) / ( aalpha*covern );
+		nss = G/(1+G);
+		css = nss*covern;
+		kss = nss*kovern;
+		wss = aalpha*css/(1-nss);
+		dss = css - wss*nss;
+		mkss = (1-ddelta+(1-mmuss)*zbar*ttheta*pow(kss,ttheta-1)*pow(nss,1-ttheta))/css;
+		yss = zbar*pow(kss,ttheta)*pow(nss,1-ttheta);
 	};
 
-	// Account for the fact that cos(pi/2) is not exactly zeros
-	if (p%2) {
-		roots[(p-1)/2] = 0;
+	// Export parameters to a .m file in MATLAB syntax
+	__host__
+	void exportmatlab(std::string filename) {
+		std::ofstream fileout(filename.c_str(), std::ofstream::trunc);
+		// Accuracy Controls
+		fileout << setprecision(16) << "nk=" << nk << ";"<< endl;
+		fileout << setprecision(16) << "nz=" << nz << ";"<< endl;
+		fileout << setprecision(16) << "nxxi=" << nxxi << ";"<< endl;
+		fileout << setprecision(16) << "nm1=" << nm1 << ";"<< endl;
+
+		// Model Parameters
+		fileout << setprecision(16) << "aalpha=" << aalpha << ";"<< endl;
+		fileout << setprecision(16) << "bbeta=" << bbeta << ";"<< endl;
+		fileout << setprecision(16) << "ddelta=" << ddelta << ";"<< endl;
+		fileout << setprecision(16) << "ttheta=" << ttheta << ";"<< endl;
+		fileout << setprecision(16) << "xxibar=" << xxibar << ";"<< endl;
+		fileout << setprecision(16) << "zbar=" << zbar << ";"<< endl;
+		fileout << setprecision(16) << "rrhozz=" << rrhozz << ";"<< endl;
+		fileout << setprecision(16) << "rrhozxxi=" << rrhozxxi << ";"<< endl;
+		fileout << setprecision(16) << "rrhoxxiz=" << rrhoxxiz << ";"<< endl;
+		fileout << setprecision(16) << "rrhoxxixxi=" << rrhoxxixxi << ";"<< endl;
+		fileout << setprecision(16) << "ssigmaepsz=" << sqrt(var_epsz) << ";"<< endl;
+		fileout << setprecision(16) << "ssigmaepsxxi=" << sqrt(var_epsxxi) << ";"<< endl;
+
+		// Steady States
+		fileout << setprecision(16) << "kss=" << kss << ";"<< endl;
+		fileout << setprecision(16) << "nss=" << nss << ";"<< endl;
+		fileout << setprecision(16) << "css=" << css << ";"<< endl;
+		fileout << setprecision(16) << "wss=" << wss << ";"<< endl;
+		fileout << setprecision(16) << "dss=" << dss << ";"<< endl;
+		fileout << setprecision(16) << "mmuss=" << mmuss << ";"<< endl;
+		fileout << setprecision(16) << "mkss=" << mkss << ";"<< endl;
+		fileout << setprecision(16) << "yss=" << yss << ";"<< endl;
+		fileout.close();
 	};
-	return 0;
 };
 
-void ind2sub_cuda(int length_size, device_vector<int> siz_vec, int index, device_vector<int> subs) {
-// Purpose:     Converts index to subscripts. i -> [i_1, i_2, ..., i_n]
-//
-// Input:       length_size = # of coordinates, i.e. how many subscripts you are getting
-//              siz_vec = vector that stores the largest coordinate value for each subscripts. Or the dimensions of matrices
-//              index = the scalar index
-//
-// Ouput:       subs = the vector stores subscripts
-    device_vector<int> cumdim(length_size);
-    cumdim[0] = 1;
-    for (int i=1; i<length_size; i++) {
-        cumdim[i] = cumdim[i-1]*siz_vec[i-1];
-    };
-    int done = 0;
-    for ( int i=length_size-1; i>=0; i-- ) {
-        subs[i] = (index - done)/cumdim[i];
-        done += subs[i]*cumdim[i];
-    };
-};
+void guess_linear(const host_vector<double> K, const host_vector<double> Z, const host_vector<double> XXI, host_vector<double> & M, para_struct para, double factor) {
+	// Initialize matrices
+	int n = 9; int n_jump = 8; int n_shock = 2;
+	host_vector<double> A(n*n,0); 
+	host_vector<double> B(n*n,0); 
+	host_vector<double> C(n*n_shock,0); 
+	host_vector<double> rrho(n_shock*n_shock,0);
+   	host_vector<double> Pphi(n*(n-n_jump+n_shock),0);
 
+	// Fill in matrices.
+	// HH Budget. Correct.
+	B[0+3*n] = para.nss;
+	B[0+2*n] = para.wss;
+	B[0+4*n] = 1;
+	B[0+1*n] = -1;
 
-// Evaluate Chebychev approximation of any degree
-__host__ __device__
-double chebyeval(int p, double x, double* coeff) {
-	// Note that coefficient vector has p+1 values
-	double sum = 0;
-	for (int i=0; i<=p; i++) {
-		sum += coeff[i]*chebypoly(i,x);	
+	// Labor Demand. Correct
+	B[1+5*n] = (para.ttheta-1)*para.yss/para.nss;
+	B[1+6*n] = (1-para.ttheta)*(1-para.mmuss)/para.nss;
+	B[1+2*n] = -(1-para.ttheta)*(1-para.mmuss)*para.yss/(para.nss*para.nss);
+	B[1+3*n] = -1;
+
+	// Labor Supply. Correct
+	B[2+1*n] = para.aalpha/(1-para.nss);
+	B[2+2*n] = para.aalpha*para.css/((1-para.nss)*(1-para.nss));
+	B[2+3*n] = -1;
+
+	// Capital Demand. Correct.
+	A[3+8*n] = para.bbeta; 
+	B[3+1*n] = -(1-para.mmuss*para.xxibar)/(para.css*para.css); 
+	B[3+5*n] = -para.xxibar/para.css; 
+	C[3+1*n] = -para.mmuss*para.xxibar/para.css;
+
+	// Resource Constraint. Correct
+	A[4+0*n] = 1; 
+	B[4+0*n] = 1-para.ddelta; 
+	B[4+6*n] = 1; 
+	B[4+1*n] = -1;
+
+	// Financial Constraint. Fixed.
+	A[5+0*n] = para.xxibar;
+	B[5+6*n] = 1;
+	C[5+1*n] = -para.xxibar*para.kss;
+
+	// Output Definition. Correct
+	C[6+0*n] = para.yss;
+	B[6+0*n] = para.ttheta*para.yss/para.kss;
+	B[6+2*n] = (1-para.ttheta)*para.yss/para.nss;
+	B[6+6*n] = -1;
+
+	// Investment Definition. Correct
+	A[7+0*n] = 1;
+	B[7+7*n] = 1;
+	B[7+0*n] = 1-para.ddelta;
+
+	// MK defintion:
+	B[8+1*n] = -pow(para.css,-2)*(1-para.ddelta+(1-para.mmuss)*para.ttheta*para.yss/para.kss); 
+	B[8+5*n] = -para.ttheta*para.yss/(para.css*para.kss); 
+	B[8+6*n] = (1-para.mmuss)*para.ttheta/(para.css*para.kss); 
+	B[8+0*n] = -(1-para.mmuss)*para.ttheta*para.yss*pow(para.kss,-2)/para.css;
+	B[8+8*n] = -1;
+
+	for (int i=0; i< n_shock*n_shock; i++) {
+		rrho[i] = para.A[i];
 	};
-	return sum;
-};
 
-// This is a very model-specific version of the function it should be.
-// Future modification needs to deal with the creation of temporary array somehow.
-__host__ __device__
-double chebyeval_multi ( double k_cheby, double z_cheby, double xxi_cheby, double* coeff ) {
-	double eval = 0;
-	for (int t_xxi=0; t_xxi <= pxxi; t_xxi++) {
-		for (int t_z=0; t_z <= pz; t_z++) {
-			for (int t_k=0; t_k <=pk; t_k++ ) {
-				eval += coeff[t_k+t_z*(1+pk)+t_xxi*(1+pk)*(1+pz)]*
-				        chebypoly(t_k,k_cheby)*chebypoly(t_z,z_cheby)*chebypoly(t_xxi,xxi_cheby);
+	// Call linear solver
+	linearQZ(A.data(),B.data(),C.data(),rrho.data(),n,n_jump,n_shock,Pphi.data());
+
+	// Create guesses.
+	for (int i_k=0; i_k<nk; i_k++) {
+		for (int i_z = 0; i_z < nz; i_z++) {
+			for (int i_xxi = 0; i_xxi < nxxi; i_xxi++) {
+				double temp = para.mkss+Pphi[8+0*9]*(K[i_k]-para.kss) + Pphi[8+1*9]*(log(Z[i_z])-log(para.zbar))+ Pphi[8+2*9]*(log(XXI[i_xxi])-log(para.xxibar));
+				M[i_k+nk*i_z+nk*nz*i_xxi] = factor*temp;
 			};
 		};
 	};
-	return eval;
-};
-
-// __host__ __device__
-// double chebyeval_multi(device_vector<int> p_vec, device_vector<double> x_vec, device_vector<double> coeff) {
-// 	int n_var = p_vec.size();
-// 	device_vector<int> size_vec(n_var);
-// 	device_vector<int> subs(n_var);
-// 	int tot_terms = 1;
-// 	// Do this because for each variables there's p+1 coefficients!
-// 	for (int i_var = 0; i_var < n_var; i_var++) {
-// 		tot_terms *= (p_vec[i_var]+1);
-// 	};
-// 
-// 	// 
-// 	double sum = 0;
-// 	for (int index = 0; index < tot_terms; index++) {
-// 		ind2sub_cuda(n_var, size_vec, index, subs);
-// 		printf("%d",subs[0]);
-// 	};
-// 
-// };
-
-// This function fit a valuex x to a grid X of size n
-__host__ __device__
-int fit2grid(const double x, const int n, const double* X) {
-	if (x < X[0]) {
-		return 0;
-	} else if (x > X[n-1]) {
-		return n-1;
-	} else {
-		int left=0; int right=n-1; int mid=(n-1)/2;
-		while(right-left>1) {
-			mid = (left + right)/2;
-			if (X[mid]==x) {
-				return mid;
-			} else if (X[mid]<x) {
-				left = mid;
-			} else {
-				right = mid;
-			};
-
-		};
-		return left;
-	}
-};
-
-// The objective function for case 2
-__host__ __device__
-double objective2(double z,double k, double xxi, double m1, double n) {
-	return (1-ddelta)*k-(1-ddelta)/m1-(1-ddelta)*aalpha*n/(xxi*m1)
-		+ z*pow(k,ttheta)*pow(n,1-ttheta)*(1-ttheta/(m1*k)-ttheta*aalpha*n/(m1*xxi*k));
-};
-
-// The  derivative for case 2
-__host__ __device__
-double derivative2(double z,double k,double xxi,double m1,double n) {
-	return -(1-ddelta)*aalpha/(xxi*m1)+(1-ttheta)*z*pow(k,ttheta)*pow(n,-ttheta)*
-		(1-ttheta/(k*m1)-ttheta*aalpha*n/(m1*xxi*k)) + z*pow(k,ttheta)*pow(n,1-ttheta)*(-ttheta*aalpha/(m1*xxi*k));
-};
-
-// The objective function for case 1
-__host__ __device__
-double objective1(double z,double k,double xxi,double m1,double n) {
-	return z*pow(k,ttheta)*pow(n,-ttheta)*(m1*(1-ttheta)/aalpha -ttheta*n/k) -1 + ddelta;
-};
-
-// The  derivative for case 1
-__host__ __device__
-double derivative1(double z,double k,double xxi,double m1,double n) {
-	return z*pow(k,ttheta)*pow(n,-ttheta-1)*(-ttheta*(1-ttheta)*m1/aalpha+(ttheta*ttheta-ttheta)*n/k);
-};
-
-// Apply Newton's Method to find labor hours 
-__host__ __device__
-double newtonlabor(double z,double k,double xxi,double m1,int lever) {
-	double n_old = 0.3;
-	double n_new = 0.3;
-	double mytol = 0.0000001;
-	int mymaxiter = 30;
-	int found = 0; // 1 means we found the solution
-
-	if (lever==1) {
-		// Check if it's possible to find a root
-		double f_old = objective1(z,k,xxi,m1,0); 
-		double f_new = objective1(z,k,xxi,m1,1); 
-
-		if (f_old*f_new>0) {
-			return -99.99;
-		};
-
-		int iter = 0;
-		while ( (found != 1) && (iter <= mymaxiter) ) {
-			n_new = n_old - objective1(z,k,xxi,m1,n_old)/derivative1(z,k,xxi,m1,n_old);
-			if (n_new<0) {
-				n_new = 0.0;
-			};
-			if (n_new>1) {
-				n_new = 1.0;
-			};
-			double error = abs((n_new-n_old)/n_new);
-			if (error<mytol) {
-				found = 1;
-			} else {
-				n_old = n_new;
-			};
-
-			iter++;
-		};
-
-		if (found==1) {
-			return n_new;
-		} else {
-			return -99.99;
-		};
-	};
-
-	// Check if it's possible to find a root
-	double f_old = objective2(z,k,xxi,m1,0); 
-	double f_new = objective2(z,k,xxi,m1,1); 
-
-	if (f_old*f_new>0) {
-		return -99.99;
-	};
-
-	int iter = 0;
-	while ( (found != 1) && (iter <= mymaxiter) ) {
-		n_new = n_old - objective2(z,k,xxi,m1,n_old)/derivative2(z,k,xxi,m1,n_old);
-		if (n_new<0) {
-			n_new = 0.0;
-		};
-		if (n_new>1) {
-			n_new = 1.0;
-		};
-		double error = abs((n_new-n_old)/n_new);
-		if (error<mytol) {
-			found = 1;
-		} else {
-			n_old = n_new;
-		};
-
-		iter++;
-	};
-
-	if (found==1) {
-		return n_new;
-	} else {
-		return -99.99;
-	};
-};
-
-// Eureka function check whether a tuple (STATE,SHOCK,SHADOW) can survive to next iteration
-__host__ __device__
-int eureka(double k, double z, double xi,
-            double m1, int i_z, int i_xi,
-            double* K, 
-			double* EM1_low, double* EM1_high, double stuff
-			) {
-
-	// Declare Variables
-	double d, mu, n, Y, c, kplus, w, lhs1, interp_low, interp_high;
-	int i_kplus;
-
-	// Case 1: Not Binding
-	mu = 0;
-	n = newtonlabor(z,k,xi,m1,1);
-	Y = stuff*pow(n,1-ttheta);
-	c = (1-ttheta)*Y/(aalpha*n);
-	kplus = (1-ddelta)*k + Y - c;
-	w = aalpha*c;
-	d = c - w*n;
-
-	lhs1 = (1-mu*xi)/c;
-
-	i_kplus = fit2grid(kplus,nk,K);
-	interp_low = EM1_low[i_kplus+nk*(i_z+i_xi*nz)] + 
-		(EM1_low[i_kplus+1+nk*(i_z+i_xi*nz)]-EM1_low[i_kplus+nk*(i_z+i_xi*nz)])/(K[i_kplus+1]-K[i_kplus])*(kplus-K[i_kplus]);
-	interp_high = EM1_high[i_kplus+nk*(i_z+i_xi*nz)] + 
-		(EM1_high[i_kplus+1+nk*(i_z+i_xi*nz)]-EM1_high[i_kplus+nk*(i_z+i_xi*nz)])/(K[i_kplus+1]-K[i_kplus])*(kplus-K[i_kplus]);
-	if (
-		(bbeta*interp_low <= lhs1) &&
-		(lhs1 <=bbeta*interp_high) &&
-		(c>0) && (xi*kplus>w*n) && (kplus>0) && (n>0) && (n<=1)
-	   )
-	{
-		// printf("Found  Not Binding\n");
-		return 1;
-	}; 
-
-
-	// Case 2: Binding
-	n = newtonlabor(z,k,xi,m1,2); 
-	c = (1-ddelta)/m1 + ttheta*stuff*pow(n,1-ttheta)/(m1*k); // correct
-	w = aalpha*c;	// correct
-	kplus = w*n/xi;	// correct
-	d = c - w*n;	// correct
-	mu = (1-ttheta)*stuff*pow(n,-ttheta)/w - 1;	// correct
-
-	i_kplus = fit2grid(kplus,nk,K);
-	interp_low = EM1_low[i_kplus+nk*(i_z+i_xi*nz)] + 
-		(EM1_low[i_kplus+1+nk*(i_z+i_xi*nz)]-EM1_low[i_kplus+nk*(i_z+i_xi*nz)])/(K[i_kplus+1]-K[i_kplus])*(kplus-K[i_kplus]);
-	interp_high = EM1_high[i_kplus+nk*(i_z+i_xi*nz)] + 
-		(EM1_high[i_kplus+1+nk*(i_z+i_xi*nz)]-EM1_high[i_kplus+nk*(i_z+i_xi*nz)])/(K[i_kplus+1]-K[i_kplus])*(kplus-K[i_kplus]);
-	lhs1 = (1-mu*(xi))/c;
-
-	if (
-		(bbeta*interp_low <= lhs1) &&
-		(lhs1 <=bbeta*interp_high) &&
-		(c>0) && (kplus>0) && (mu>=0) && (n>0) && (n<=1)
-	   )
-	{
-		// printf("Found Binding \n");
-		return 2;
-	};
-
-	return 0;
 };
 
 // This functor find new M at each state
@@ -576,44 +419,45 @@ struct myDist {
 // Main
 int main()
 {
-	// Steady-State calculation
-	double zss = 1;
-	double xxiss = xxibar;
-	double nomin = xxiss+1-bbeta*(1-ddelta);
-	double denom = 1-ttheta+bbeta*ttheta; 
-	double kovern = pow(nomin/denom,1/(ttheta-1));
-	double covern = pow(kovern,ttheta) - ddelta*kovern;
-	double css = xxiss*kovern/aalpha;
-	double nss = css/covern;
-	double kss = kovern*nss;
-	double wss = aalpha*css;
-	double mmuss = (1-bbeta*(1-ddelta+ttheta*pow(kovern,ttheta-1)))/xxiss;
-	double dss = css - wss*nss;
-	double invss = ddelta*kss;
-	double mkss =(1/css)*( 1-ddelta+ttheta*zss*pow(kovern,ttheta-1)  );
-	double yss = zss*pow(kss,ttheta)*pow(nss,1-ttheta);
-	double lhsfc = (xxiss*kss);
-	double rhsfc = wss*nss;
+	// Initialize Parameters
+	para_struct para;
 
-	cout << setprecision(16) << "kss: " << kss << endl;
-	cout << setprecision(16) << "invss: " << invss << endl;
-	cout << setprecision(16) << "zss: " << zss << endl;
-	cout << setprecision(16) << "xxiss: " <<xxibar << endl;
-	cout << setprecision(16) << "mkss: " << mkss << endl;
-	cout << setprecision(16) << "dss: " << dss << endl;
-	cout << setprecision(16) << "css: " << css << endl;
-	cout << setprecision(16) << "nss: " << nss << endl;
-	cout << setprecision(16) << "wss: " << wss << endl;
-	cout << setprecision(16) << "mmuss: " << mmuss << endl;
-	cout << setprecision(16) << "lhsfc: " << lhsfc << endl;
-	cout << setprecision(16) << "rhsfc: " << rhsfc << endl;
+	// Set Model Parameters
+	para.bbeta = 0.9825;
+	para.ddelta = 0.025;
+	para.ttheta = 0.36;
+	para.kkappa = 0.1460;
+	para.ttau = 0.3500;
+	para.xxibar = 0.11;
+	para.zbar = 1.0;
+	para.rrhozz = 0.9457;
+	para.rrhoxxiz = 0.0321;
+	para.rrhozxxi =-0.0091;
+	para.rrhoxxixxi = 0.9703;
+	para.var_epsz = 0.0045*0.0045;
+	para.var_epsxxi = 0.0098*0.0098;
+	para.complete(); // complete all implied para, find S-S
+
+	cout << setprecision(16) << "kss: " << para.kss << endl;
+	cout << setprecision(16) << "zss: " << para.zbar << endl;
+	cout << setprecision(16) << "xxiss: " <<para.xxibar << endl;
+	cout << setprecision(16) << "mkss: " << para.mkss << endl;
+	cout << setprecision(16) << "dss: " << para.dss << endl;
+	cout << setprecision(16) << "css: " << para.css << endl;
+	cout << setprecision(16) << "nss: " << para.nss << endl;
+	cout << setprecision(16) << "wss: " << para.wss << endl;
+	cout << setprecision(16) << "mmuss: " << para.mmuss << endl;
+	cout << setprecision(16) << "aalpha: " << para.aalpha << endl;
+	cout << setprecision(16) << "tol: " << tol << endl;
 
 	// Select Device
-	int num_devices;
-	cudaGetDeviceCount(&num_devices);
-	if (num_devices>1) {
-		cudaSetDevice(0);
+	// int num_devices;
+	// cudaGetDeviceCount(&num_devices);
+	if (argc > 1) {
+		int gpu = atoi(argv[1]);
+		cudaSetDevice(gpu);
 	};
+
 	// Only for cuBLAS
 	const double alpha = 1.0;
 	const double beta = 0.0;
@@ -637,49 +481,32 @@ int main()
 	
 	// Create capital grid
 	double* h_K_cheby_ptr = raw_pointer_cast(h_K_cheby.data());
-	chebyroots_cuda(nk,h_K_cheby_ptr);
+	chebyroots(nk,h_K_cheby_ptr);
 	h_K = h_K_cheby;
 	double* h_K_ptr = raw_pointer_cast(h_K.data());
-	double minK = (1-kwidth)*kss;
-	double maxK = (1+kwidth)*kss;
+	double minK = (1-kwidth)*para.kss;
+	double maxK = (1+kwidth)*para.kss;
 	cout << "minK: " << minK << endl;
 	cout << "maxK: " << maxK << endl;
 	fromchebydomain(minK, maxK, nk, h_K_ptr);
 
-	// initialize shock grids and transition matrix
-	double A [4];
-	A[0] = rrhozz;
-	A[1] = rrhoxxiz;
-	A[2] = rrhozxxi;
-	A[3] = rrhoxxixxi;
-	double Ssigma [4];
-	Ssigma[0] = ssigmaz*ssigmaz;
-	Ssigma[1] = 0;
-	Ssigma[2] = 0;
-	Ssigma[3] = ssigmaxxi*ssigmaxxi;
-	double* h_P_ptr = raw_pointer_cast(h_P.data());
-	host_vector<double> h_shockgrids(nz+nxxi);
+	// Create shocks grids
+	host_vector<double> h_shockgrids(2*nz);
 	double* h_shockgrids_ptr = raw_pointer_cast(h_shockgrids.data());
-	tauchen_vec(2, nz, 3, A, Ssigma, h_shockgrids_ptr, h_P_ptr);
-	for (int index=0; index<nz; index++) {
-		h_Z[index] = zbar*exp(h_shockgrids[index+0*nz]);
-		h_XXI[index] = xxibar*exp(h_shockgrids[index+1*nz]);
+	double* h_P_ptr = raw_pointer_cast(h_P.data());
+	gridgen_fptr linspace_fptr = &linspace; // select linspace as grid gen
+	tauchen_vec(2,nz,5,para.A,para.Ssigma_e,h_shockgrids_ptr,h_P_ptr,linspace_fptr);
+	for (int i_shock = 0; i_shock < nz; i_shock++) {
+		h_Z[i_shock] = para.zbar*exp(h_shockgrids[i_shock+0*nz]);
+		h_XXI[i_shock] = para.xxibar*exp(h_shockgrids[i_shock+1*nz]);
 	};
 	double* h_Z_cheby_ptr = raw_pointer_cast(h_Z_cheby.data());
 	double* h_XXI_cheby_ptr = raw_pointer_cast(h_XXI_cheby.data());
-	chebyroots_cuda(nz,h_Z_cheby_ptr);
-	chebyroots_cuda(nxxi,h_XXI_cheby_ptr);
-	printstuff< host_vector<double> >(h_XXI);
+	chebyroots(nz,h_Z_cheby_ptr);
+	chebyroots(nxxi,h_XXI_cheby_ptr);
 
-	// Read the initial guess
-	ifstream fin_guess("./MATLAB/coeff_guess.txt");
-	for (int i=0; i<(1+pk)*(1+pz)*(1+pxxi); i++) {
-		double temp;
-		fin_guess >> setprecision(18) >> temp;
-		h_coeff[i] = temp;
-	};
-	fin_guess.close();
-	printstuff< host_vector<double> > (h_coeff);
+	// Create Initial M generated from linear solution
+	guess_linear(h_K, h_Z, h_XXI, h_M, para, 1.0) ;
 
 	// Copy to the device
 	device_vector<double> d_K = h_K;
@@ -700,10 +527,6 @@ int main()
 	device_vector<double> d_coeff = h_coeff;
 	device_vector<double> d_coeff_temp = h_coeff_temp;
 	device_vector<double> d_coeff_new = h_coeff_new;
-
-	// Device only vectors
-	// device_vector<double> d_X(nk*nz*nxxi*pk*pz*pxxi);
-	// device_vector<double> d_M(nk*nz*nxxi);
 
 	// Obtain device pointers
 	double* d_K_ptr = raw_pointer_cast(d_K.data());
@@ -752,14 +575,27 @@ int main()
 	);
 	h_X = d_X;
 	findprojector(h_X_ptr, nk*nz*nxxi, (1+pk)*(1+pz)*(1+pxxi), h_projector_ptr);
-	d_projector = h_projector;
+	d_projector = h_projector; // Copy host projector to device
 
-	
+	// Regress M_guess on basis to find initial coefficient
+	cublasDgemv(
+			handle,	// cuBlas handle
+			CUBLAS_OP_N, // N means don't transpose A
+			(1+pk)*(1+pz)*(1+pxxi), // # of row in matrix A
+			nk*nz*nxxi, // # of col in matrix A
+			&alpha, // just 1
+			d_projector_ptr, // pointer to matrix A stored in column-major format
+			(1+pk)*(1+pz)*(1+pxxi), // leading dimesnion of array to store A, usually # of rows
+			d_M_ptr, // pointer to x
+			1, // stride of x, usually 1
+			&beta, // usually zero
+			d_coeff_ptr, // pointer to y
+			1 // stride of y
+			);
 
-
+	// Main iterations
 	double diff = 10; double dist; int iter = 0;
 	while ((diff>tol)&&(iter<maxiter)){
-
 		// Find the current M at each state. Does y = A*x
 		cublasDgemv(
 				handle,	// cuBlas handle
@@ -775,8 +611,6 @@ int main()
 				d_M_ptr, // pointer to y
 				1 // stride of y
 				);
-
-		// printstuff< host_vector<double> > (d_M);
 
 		// Based on current M(k,z,xxi), find implied new M
 		thrust::for_each(
@@ -821,75 +655,6 @@ int main()
 		// Replace old coefficient with new
 		d_coeff = d_coeff_new;
 
-		// Find EMs for low and high 
-		// cublasDgemm(handle,
-		// 		CUBLAS_OP_N,  
-		// 		CUBLAS_OP_T,
-		// 		nk*nb, nz*nxi, nz*nxi,
-		// 		&alpha,
-		// 		d_V1_low_ptr, 
-		// 		nk*nb, 
-		// 		d_P_ptr,
-		// 		nz*nxi,
-		// 		&beta,
-		// 		d_EM1_low_ptr,
-		// 		nk*nb);
-		// cublasDgemm(handle,
-		// 		CUBLAS_OP_N,  
-		// 		CUBLAS_OP_T,
-		// 		nk*nb, nz*nxi, nz*nxi,
-		// 		&alpha,
-		// 		d_V1_high_ptr,  
-		// 		nk*nb,      
-		// 		d_P_ptr,
-		// 		nz*nxi,
-		// 		&beta,
-		// 		d_EM1_high_ptr,
-		// 		nk*nb);
-
-		// // Directly find the new Value function
-		// thrust::for_each(
-		// 	begin,
-		// 	end,
-		// 	RHS(d_K_ptr, d_Z_ptr, d_XI_ptr,
-		// 		d_V1_low_ptr,
-		// 		d_V1_high_ptr,
-		// 		d_Vplus1_low_ptr,
-		// 		d_Vplus1_high_ptr,
-		// 		d_EM1_low_ptr,
-		// 		d_EM1_high_ptr,
-		// 		d_flag_ptr)
-		// );
-
-		// // Find error
-		// double diff1 = transform_reduce(
-		// 	make_zip_iterator(make_tuple(d_V1_low.begin(), d_Vplus1_low.begin(), d_V1_high.begin(),d_Vplus1_high.begin())),
-		// 	make_zip_iterator(make_tuple(d_V1_low.end()  , d_Vplus1_low.end()  , d_V1_high.end()  ,d_Vplus1_high.end())),
-		// 	myMinus(),
-		// 	0.0,
-		// 	maximum<double>()
-		// 	);
-
-		// // Find distance 
-		// double dist1 = transform_reduce(
-		// 	make_zip_iterator(make_tuple(d_Vplus1_low.begin(),d_Vplus1_high.begin())),
-		// 	make_zip_iterator(make_tuple(d_Vplus1_low.end()  ,d_Vplus1_high.end())),
-		// 	myDist(),
-		// 	0.0,
-		// 	maximum<double>()
-		// 	);
-		// diff = max(diff1,-99.0);
-		// dist = max(dist1,-99.0);
-
-		// cout << "diff is: "<< diff << endl;
-		// cout << "dist is: "<< dist << endl;
-		// cout << "Vplus1[1035,10,6] (the spike) range is " << d_Vplus1_low[1035+nk*10+nk*nz*6] << ", " << d_Vplus1_high[1035+nk*10+nk*nz*6] << endl;
-
-		// // update correspondence
-		// d_V1_low = d_Vplus1_low; d_V1_high = d_Vplus1_high;
-
-		// cout << ++iter << endl;
-		// cout << "=====================" << endl;
 		iter++;
 		printf("=======================================================\n=== Iteration No. %i finished \n=======================================================\n",
 				iter);
