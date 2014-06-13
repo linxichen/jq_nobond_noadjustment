@@ -767,28 +767,5 @@ int main(int argc, char ** argv)
 	// Export parameters to MATLAB
 	para.exportmatlab("./MATLAB/vfi_para.m");
 
-	// Compute the Euler equation error
-	double eee = -999999;
-	for (int i_k = 0; i_k < nk; i_k++) {
-		for (int i_z = 0; i_z < nz; i_z++) {
-			for (int i_xxi = 0; i_xxi < nxxi; i_xxi++) {
-				int index = i_k + i_z*nk + i_xxi*nk*nz;
-				double ctoday = h_copt[index];
-				int i_kplus = h_koptind[index];
-				double sum = 0;
-				for (int i_zplus = 0; i_zplus < nz; i_zplus++) {
-					for (int i_xxiplus = 0; i_xxiplus < nxxi; i_xxiplus++) {
-						int indexplus = i_kplus+i_zplus*nk+i_xxiplus*nk*nz;
-						sum += para.bbeta*h_P[i_z + i_xxi*nz + i_zplus*nz*nxxi + i_xxiplus*nz*nxxi*nz]*(1 - para.ddelta + (1-h_mmuopt[indexplus])*para.ttheta*h_Z[i_zplus]*pow(h_K[i_kplus],para.ttheta-1)*pow(h_nopt[indexplus],1-para.ttheta))/h_copt[indexplus];
-					};
-				};
-				double ctmr = (1-h_mmuopt[index]*h_XXI[i_xxi])/sum;
-				double eee_temp = abs(ctoday/ctmr-1);
-				eee = max(eee, eee_temp);
-			};
-		};
-	};
-
-	cout << "Euler equation error = " << eee << endl;
 	return 0;
 }
