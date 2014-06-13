@@ -13,7 +13,7 @@ P = csvread('P.csv');
 nk = length(Kgrid); % nb = length(Bgrid);
 nz = length(Zgrid); nxi = length(XXIgrid);
 cd ../MATLAB
-mypara;
+vfi_para;
 cd ../vfi_results;
 %% Read in shadow value and policy functions
 V = csvread('V.csv');
@@ -92,4 +92,12 @@ coptcuda_occa = coptcuda;
 %dcuda_occa = dcuda;
 ncuda_occa = ncuda;
 mmucuda_occa = mmucuda;
+
+%% Find Euler equation error
+burnin = 1000;
+T = 10000+burnin;
+uz = rand(1,T);
+uxxi = rand(1,T);
+
+
 

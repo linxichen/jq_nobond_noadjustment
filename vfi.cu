@@ -1,8 +1,8 @@
-#define nk 25600
+#define nk 25001
 #define nm1 2560
 #define nz 13
 #define nxxi 13
-#define tol 1e-15
+#define tol 1e-10
 #define maxiter 2500
 #define kwidth 1.2
 
@@ -250,9 +250,9 @@ struct case2_hour {
 	// Constructor
 	__host__ __device__
 	case2_hour(state_struct s, para_struct para) {
-		c0 = para.aalpha*(1-para.ddelta)*s.k/(s.zkttheta*(1-para.ttheta)) - para.aalpha*s.kplus/((1-para.ttheta)*s.zkttheta);
-		coneminusttheta = (para.aalpha+1-para.ttheta)/(1-para.ttheta);
-		cminusttheta = -1;
+		c0 = para.aalpha*(1-para.ddelta)*s.k - para.aalpha*s.kplus;
+		coneminusttheta = (para.aalpha+1-para.ttheta)*s.zkttheta;
+		cminusttheta = (para.ttheta-1)*s.zkttheta;
 		ttheta = para.ttheta;
 	};
 
@@ -284,9 +284,9 @@ struct control_struct {
 			double zkttheta = state.zkttheta;
 			double kplus = state.kplus;
 			n = pow(xxi*kplus/(zkttheta),1/(1-para.ttheta));
-			Y = zkttheta*pow(n,1-para.ttheta);
+			Y = xxi*kplus;
 			c = Y+(1-para.ddelta)*k-kplus;
-			mmu = 1-para.aalpha*c*pow(n,para.ttheta)/((1-n)*(1-para.ttheta)*zkttheta);	
+			mmu = 1-para.aalpha*c/((1-n)*(1-para.ttheta)*Y/n);	
 		};
 
 		if (binding == 0) {
@@ -311,7 +311,7 @@ double rhsvalue (state_struct s, int i_z, int i_xxi, int i_kplus, double* EV, pa
 	u1.compute(s,para,1);
 	u2.compute(s,para,0);
 	if (
-			(u1.mmu >= 0) &&
+			// (u1.mmu >= 0) &&
 			(u1.c > 0 ) &&
 			(u1.n > 0 ) &&
 			(u1.n < 1 )
@@ -466,6 +466,69 @@ struct RHS
 	};
 };	
 
+struct findpolicy {
+	// Data member
+	double *K, *Z, *XXI,  *EV, *copt, *kopt, *nopt, *mmuopt;
+	int * koptind;
+	para_struct para;
+
+	// Constructor
+	__host__ __device__
+	findpolicy(double* K_ptr, double* Z_ptr, double* XXI_ptr, int* koptind_ptr, double* EV_ptr, double* copt_ptr, double* kopt_ptr, double* nopt_ptr, double* mmuopt_ptr, para_struct _para) {
+		K = K_ptr;
+		Z = Z_ptr;
+		XXI = XXI_ptr;
+		koptind = koptind_ptr;
+		EV = EV_ptr;
+		copt = copt_ptr;
+		kopt = kopt_ptr;
+		nopt = nopt_ptr;
+		mmuopt = mmuopt_ptr;
+		para = _para;
+	};
+
+	// Main operator
+	__host__ __device__
+	void operator()(int index) {
+		// Perform ind2sub
+		int subs[3];
+		int size_vec[3];
+		size_vec[0] = nk;
+		size_vec[1] = nz;
+		size_vec[2] = nxxi;
+		ind2sub(3,size_vec,index,subs);
+		int i_k = subs[0];
+		int i_z = subs[1];
+		int i_xxi = subs[2];
+
+		// Preparation
+		double k = K[i_k];
+		double z = Z[i_z]; 
+		double xxi = XXI[i_xxi];
+		double kplus = K[koptind[index]];
+		double zkttheta = z*pow(k,para.ttheta);
+		int binding;
+		state_struct s(k,z,xxi,zkttheta,kplus);
+		rhsvalue(s, i_z, i_xxi, koptind[index], EV, para, binding);
+		control_struct u;
+
+		// Try not binding first
+		if (binding==0) {
+			u.compute(s,para,0);
+			copt[index] = u.c;
+			kopt[index] = s.kplus;
+			nopt[index] = u.n;
+			mmuopt[index] = u.mmu;
+		} else {
+			u.compute(s,para,1);
+			copt[index] = u.c;
+			kopt[index] = s.kplus;
+			nopt[index] = u.n;
+			mmuopt[index] = u.mmu;
+		};
+	};
+};
+	
 // This functor calculates the error
 struct myMinus {
 	// Tuple is (V1low,Vplus1low,V1high,Vplus1high,...)
@@ -536,7 +599,7 @@ int main(int argc, char ** argv)
 	host_vector<double> h_K(nk); 
 	host_vector<double> h_Z(nz);
 	host_vector<double> h_XXI(nxxi);
-	host_vector<double> h_V(nk*nz*nxxi, 0);
+	host_vector<double> h_V(nk*nz*nxxi, (log(para.css)+para.aalpha*log(1-0.3))/(1-para.bbeta));
 	host_vector<double> h_Vplus(nk*nz*nxxi,0);
 	host_vector<int> h_koptind(nk*nz*nxxi);
 	host_vector<double> h_EV(nk*nz*nxxi,0.0);
@@ -545,14 +608,14 @@ int main(int argc, char ** argv)
 	// Create capital grid
 	double minK = 1/kwidth*para.kss;
 	double maxK = kwidth*para.kss;
-	linspace(5,15,nk,raw_pointer_cast(h_K.data()));
+	linspace(minK,maxK,nk,raw_pointer_cast(h_K.data()));
 
 	// Create shocks grids
 	host_vector<double> h_shockgrids(2*nz);
 	double* h_shockgrids_ptr = raw_pointer_cast(h_shockgrids.data());
 	double* h_P_ptr = raw_pointer_cast(h_P.data());
 	gridgen_fptr linspace_fptr = &linspace; // select linspace as grid gen
-	tauchen_vec(2,nz,5,para.A,para.Ssigma_e,h_shockgrids_ptr,h_P_ptr,linspace_fptr);
+	tauchen_vec(2,nz,3,para.A,para.Ssigma_e,h_shockgrids_ptr,h_P_ptr,linspace_fptr);
 	for (int i_shock = 0; i_shock < nz; i_shock++) {
 		h_Z[i_shock] = para.zbar*exp(h_shockgrids[i_shock+0*nz]);
 		h_XXI[i_shock] = para.xxibar*exp(h_shockgrids[i_shock+1*nz]);
@@ -660,52 +723,36 @@ int main(int argc, char ** argv)
 	float msecPerMatrixMul = msecTotal;
 	cout << "Time= " << msecPerMatrixMul << " msec, iter= " << iter << endl;
 
+	// After it converges find the policy
+	device_vector<double> d_copt(nk*nz*nxxi);
+	device_vector<double> d_kopt(nk*nz*nxxi);
+	device_vector<double> d_nopt(nk*nz*nxxi);
+	device_vector<double> d_mmuopt(nk*nz*nxxi);
+	double* d_copt_ptr = raw_pointer_cast(d_copt.data());
+	double* d_kopt_ptr = raw_pointer_cast(d_kopt.data());
+	double* d_nopt_ptr = raw_pointer_cast(d_nopt.data());
+	double* d_mmuopt_ptr = raw_pointer_cast(d_mmuopt.data());
+
+	// Find polices
+	thrust::for_each(
+			begin,
+			end,
+			findpolicy(d_K_ptr, d_Z_ptr, d_XXI_ptr, d_koptind_ptr, d_EV_ptr, d_copt_ptr, d_kopt_ptr, d_nopt_ptr, d_mmuopt_ptr, para)
+			);
 
 	// Copy back to host and print to file
 	h_V = d_V;
 	h_EV = d_EV;
 	h_koptind = d_koptind;
 	
-	// Compute and save the decision variables
-	host_vector<double> h_copt(nk*nz*nxxi);
-	host_vector<double> h_kopt(nk*nz*nxxi);
-	host_vector<double> h_nopt(nk*nz*nxxi);
-	host_vector<double> h_mmuopt(nk*nz*nxxi);
+	// Save the decision variables
+	host_vector<double> h_copt = d_copt;
+	host_vector<double> h_kopt = d_kopt;
+	host_vector<double> h_nopt = d_nopt;
+	host_vector<double> h_mmuopt = d_mmuopt;
 	// host_vector<double> h_dopt(nk*nz*nxxi);
 	// host_vector<double> h_wopt(nk*nz*nxxi);
 
-	for (int i_k=0; i_k<nk; i_k++) {
-		for (int i_z = 0; i_z < nz; i_z++) {
-			for (int i_xxi=0; i_xxi < nxxi; i_xxi++) {
-				int index = i_k+i_z*nk+i_xxi*nk*nz;
-				double k = h_K[i_k];
-				double z=h_Z[i_z]; double xxi=h_XXI[i_xxi];
-				double kplus = h_K[h_koptind[index]];
-				double zkttheta = z*pow(k,para.ttheta);
-				int binding;
-				state_struct s(k,z,xxi,zkttheta,kplus);
-				rhsvalue (s, i_z, i_xxi, h_koptind[index], h_EV.data(), para, binding);
-				control_struct u;
-
-				// Try not binding first
-				if (binding==0) {
-					u.compute(s,para,0);
-
-					h_copt[index] = u.c;
-					h_kopt[index] = s.kplus;
-					h_nopt[index] = u.n;
-					h_mmuopt[index] = u.mmu;
-				} else {
-					u.compute(s,para,1);
-					h_copt[index] = u.c;
-					h_kopt[index] = s.kplus;
-					h_nopt[index] = u.n;
-					h_mmuopt[index] = u.mmu;
-				};
-			};
-		};
-	};
-	
 	save_vec(h_K,nk,"./vfi_results/Kgrid.csv");
 	save_vec(h_Z,"./vfi_results/Zgrid.csv");
 	save_vec(h_XXI,"./vfi_results/XXIgrid.csv");
@@ -743,6 +790,5 @@ int main(int argc, char ** argv)
 	};
 
 	cout << "Euler equation error = " << eee << endl;
-
 	return 0;
 }
