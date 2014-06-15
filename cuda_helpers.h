@@ -261,20 +261,3 @@ double chebyeval(int p, double x, double* coeff) {
 	};
 	return sum;
 };
-
-// This is a very model-specific version of the function it should be.
-// Future modification needs to deal with the creation of temporary array somehow.
-// __host__ __device__
-// double chebyeval_multi ( double k_cheby, double z_cheby, double xxi_cheby, double* coeff ) {
-// 	double eval = 0;
-// 	for (int t_xxi=0; t_xxi <= pxxi; t_xxi++) {
-// 		for (int t_z=0; t_z <= pz; t_z++) {
-// 			for (int t_k=0; t_k <=pk; t_k++ ) {
-// 				eval += coeff[t_k+t_z*(1+pk)+t_xxi*(1+pk)*(1+pz)]*
-// 				        chebypoly(t_k,k_cheby)*chebypoly(t_z,z_cheby)*chebypoly(t_xxi,xxi_cheby);
-// 			};
-// 		};
-// 	};
-// 	return eval;
-// };
-

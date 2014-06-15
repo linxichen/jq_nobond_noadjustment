@@ -454,6 +454,7 @@ struct findnewM
 		stop:
 		int shit = 0;
 	};
+};
 
 // This functor yields X, storing basis function values at each state. See Der Hann notes
 struct findbasis
@@ -786,8 +787,7 @@ int main(int argc, char** argv)
 		d_coeff = d_coeff_new;
 
 		iter++;
-		printf("=======================================================\n=== Iteration No. %i finished \n=======================================================\n",
-				iter);
+		printf("=======================================================\n=== Iteration No. %i finished \n=======================================================\n",iter);
 	};
 
 	//==========cuBLAS stuff ends=======================
@@ -806,8 +806,8 @@ int main(int argc, char** argv)
 
 	// Copy back to host and print to file
 	h_coeff = d_coeff;
-	save_vec(h_coeff,"./fpiter_results/coeff.csv");
-	return 0;
+    save_vec(h_coeff,"./fpiter_results/coeff.csv");
+    return 0;
 };
 
 
