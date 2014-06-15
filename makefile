@@ -33,7 +33,7 @@ CXXFLAGS  = -O3 -I$(ICUDA) -I$(ICUDA_MAC) -I$(ICPP_MAC) -I$(ILAPACK) -DHAVE_LAPA
 LDFLAGS  += -lcublas -lcurand -lcudart -L$(LCUDA) -L$(LCUDA_MAC) -L$(LCPP_MAC) -lnlopt -larmadillo -lopenblas -llapacke -llapack
 
 # List Executables and Objects
-EXEC = adrian vfi 
+EXEC = adrian vfi fpiter
 OBJECTS = cppcode.o
 
 all : $(EXEC)
@@ -54,6 +54,14 @@ vfi : vfi.o $(OBJECTS)
 vfi.o : vfi.cu 
 	$(NVCC) $(NVCCFLAGS) $(CXXFLAGS) -c $<  
 
+# Link objects from CUDA and C++ codes
+fpiter : fpiter.o $(OBJECTS) 
+	$(CXX) -o $@ $? $(LDFLAGS)
+
+# Compile CUDA code
+fpiter.o : fpiter.cu 
+	$(NVCC) $(NVCCFLAGS) $(CXXFLAGS) -c $<  
+
 # Compile C++ code
 cppcode.o : cppcode.cpp
 	$(CXX) $(CXXFLAGS) -c -std=c++11  $<
@@ -72,6 +80,9 @@ run : all
 
 runvfi : vfi
 	./vfi
+
+runfp : fpiter
+	./fpiter
 
 doc : README.md
 	$(MD) -o README.html README.md
