@@ -261,3 +261,32 @@ double chebyeval(int p, double x, double* coeff) {
 	};
 	return sum;
 };
+
+// Eval multi-dimensional Chebyshev tensor basis 
+// y = sum T_pi(x_i), i = 1,2,...p
+__host__ __device__
+double chebyeval_multi (const int n_var, double* x, int* size_vec,int* temp_subs, double*coeff) {
+	// Note size_vec's elements are p+1 for each var
+	int tot_deg = 1;
+	for (int i = 0; i < n_var; i++) {
+		tot_deg *= (size_vec[i]); // Note there's p+1 coeffs
+	};
+
+	double eval;
+	for (int index = 0; index < tot_deg; index++) {
+		// Perform ind2sub to get current degrees for each var
+		ind2sub(n_var, size_vec, index, temp_subs);
+
+		// Find the values at current degrees
+		double temp = 0;
+		for (int i = 0; i < n_var; i++) {
+			temp *= chebypoly(temp_subs[i],x[i]);
+		};
+
+		// Add to the eval
+		eval += (coeff[index]*temp);
+	};
+
+	return eval;
+};
+
