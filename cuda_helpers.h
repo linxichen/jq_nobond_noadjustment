@@ -278,7 +278,7 @@ double chebyeval_multi (const int n_var, double* x, int* size_vec,int* temp_subs
 		ind2sub(n_var, size_vec, index, temp_subs);
 
 		// Find the values at current degrees
-		double temp = 0;
+		double temp = 1;
 		for (int i = 0; i < n_var; i++) {
 			temp *= chebypoly(temp_subs[i],x[i]);
 		};
@@ -286,7 +286,6 @@ double chebyeval_multi (const int n_var, double* x, int* size_vec,int* temp_subs
 		// Add to the eval
 		eval += (coeff[index]*temp);
 	};
-
 	return eval;
 };
 

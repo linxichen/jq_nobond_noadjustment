@@ -41,7 +41,7 @@ using namespace thrust;
 #define pz 7
 #define pxxi 7
 #define tol 1e-10
-#define maxiter 10000
+#define maxiter 0
 #define kwidth 0.2
 #define bwidth 1.15 
 #define mkwidth 15.0 // has to be a double 
@@ -73,8 +73,6 @@ void guess_linear(const host_vector<double> K, const host_vector<double> Z, cons
 		};
 	};
 };
-
-
 
 // This functor find new M at each state
 struct findnewM
@@ -284,6 +282,22 @@ struct myDist {
 // Main
 int main(int argc, char** argv)
 {
+	// Testing Ground
+	double x[2]; x[0] = 0.3; x[1] = 0.4;
+	int size_vec[2]; size_vec[0] = 3; size_vec[1] = 3;
+	int subs[2];
+	double coeff[9];
+	coeff[0] = 1;
+	coeff[1] = 2;
+	coeff[2] = 3;
+	coeff[3] = 4;
+	coeff[4] = 5;
+	coeff[5] = 6;
+	coeff[6] = 7;
+	coeff[7] = 8;
+	coeff[8] = 9;
+	cout << chebyeval_multi(2,x,size_vec,subs,coeff) << endl;
+
 	// Initialize Parameters
 	para p;
 
