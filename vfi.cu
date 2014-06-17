@@ -1,4 +1,4 @@
-#define nk 25001
+#define nk 2501
 #define nm1 2560
 #define nz 13
 #define nxxi 13
@@ -233,13 +233,13 @@ struct RHS
 
 struct findpolicy {
 	// Data member
-	double *K, *Z, *XXI,  *EV, *copt, *kopt, *nopt, *mmuopt;
+	double *K, *Z, *XXI,  *EV, *copt, *kopt, *nopt, *mmuopt, *mopt;
 	int * koptind;
 	para p;
 
 	// Constructor
 	__host__ __device__
-	findpolicy(double* K_ptr, double* Z_ptr, double* XXI_ptr, int* koptind_ptr, double* EV_ptr, double* copt_ptr, double* kopt_ptr, double* nopt_ptr, double* mmuopt_ptr, para _p) {
+	findpolicy(double* K_ptr, double* Z_ptr, double* XXI_ptr, int* koptind_ptr, double* EV_ptr, double* copt_ptr, double* kopt_ptr, double* nopt_ptr, double* mmuopt_ptr, double* mopt_ptr, para _p) {
 		K = K_ptr;
 		Z = Z_ptr;
 		XXI = XXI_ptr;
@@ -249,6 +249,7 @@ struct findpolicy {
 		kopt = kopt_ptr;
 		nopt = nopt_ptr;
 		mmuopt = mmuopt_ptr;
+		mopt = mopt_ptr;
 		p = _p;
 	};
 
@@ -284,12 +285,14 @@ struct findpolicy {
 			kopt[index] = splus.k;
 			nopt[index] = u.n;
 			mmuopt[index] = u.mmu;
+			mopt[index] = (1-p.ddelta+(1-u.mmu)*p.ttheta*s.z*pow(s.k,p.ttheta-1)*pow(u.n,1-p.ttheta))/u.c;
 		} else {
 			u.compute(s,splus,p,1);
 			copt[index] = u.c;
 			kopt[index] = splus.k;
 			nopt[index] = u.n;
 			mmuopt[index] = u.mmu;
+			mopt[index] = (1-p.ddelta+(1-u.mmu)*p.ttheta*s.z*pow(s.k,p.ttheta-1)*pow(u.n,1-p.ttheta))/u.c;
 		};
 	};
 };
@@ -493,16 +496,18 @@ int main(int argc, char ** argv)
 	device_vector<double> d_kopt(nk*nz*nxxi);
 	device_vector<double> d_nopt(nk*nz*nxxi);
 	device_vector<double> d_mmuopt(nk*nz*nxxi);
+	device_vector<double> d_mopt(nk*nz*nxxi);
 	double* d_copt_ptr = raw_pointer_cast(d_copt.data());
 	double* d_kopt_ptr = raw_pointer_cast(d_kopt.data());
 	double* d_nopt_ptr = raw_pointer_cast(d_nopt.data());
 	double* d_mmuopt_ptr = raw_pointer_cast(d_mmuopt.data());
+	double* d_mopt_ptr = raw_pointer_cast(d_mopt.data());
 
 	// Find polices
 	thrust::for_each(
 			begin,
 			end,
-			findpolicy(d_K_ptr, d_Z_ptr, d_XXI_ptr, d_koptind_ptr, d_EV_ptr, d_copt_ptr, d_kopt_ptr, d_nopt_ptr, d_mmuopt_ptr, p)
+			findpolicy(d_K_ptr, d_Z_ptr, d_XXI_ptr, d_koptind_ptr, d_EV_ptr, d_copt_ptr, d_kopt_ptr, d_nopt_ptr, d_mmuopt_ptr, d_mopt_ptr,p)
 			);
 
 	// Copy back to host and print to file
@@ -515,8 +520,7 @@ int main(int argc, char ** argv)
 	host_vector<double> h_kopt = d_kopt;
 	host_vector<double> h_nopt = d_nopt;
 	host_vector<double> h_mmuopt = d_mmuopt;
-	// host_vector<double> h_dopt(nk*nz*nxxi);
-	// host_vector<double> h_wopt(nk*nz*nxxi);
+	host_vector<double> h_mopt = d_mopt;
 
 	save_vec(h_K,nk,"./vfi_results/Kgrid.csv");
 	save_vec(h_Z,"./vfi_results/Zgrid.csv");
@@ -527,6 +531,7 @@ int main(int argc, char ** argv)
 	save_vec(h_kopt,"./vfi_results/kopt.csv");
 	save_vec(h_nopt,"./vfi_results/nopt.csv");
 	save_vec(h_mmuopt,"./vfi_results/mmuopt.csv");
+	save_vec(h_mopt,"./vfi_results/mopt.csv");
 	cout << "Policy functions output completed." << endl;
 
 	// Export parameters to MATLAB

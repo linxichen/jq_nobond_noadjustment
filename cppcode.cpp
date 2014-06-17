@@ -206,9 +206,7 @@ void tauchen_vec(int M, int N, int m, double* A_ptr, double* Ssigma_e_ptr, doubl
 void findprojector(double* X_ptr, int nrows, int ncols, double * P_ptr) {
 	mat X(X_ptr, nrows, ncols, false, false);
 	mat XprimeX = diagmat(trans(X)*X);
-	// XprimeX.print("X'X=");
 	mat P = inv(XprimeX)*trans(X);
-	// P.print("Projector=");
 	
 	for (int i=0; i<nrows*ncols; i++) {
 		P_ptr[i] = P.memptr()[i];

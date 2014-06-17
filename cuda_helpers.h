@@ -55,7 +55,6 @@ int fit2grid(const double x, const int n, const double* X) {
 // This function fit a valuex x to a grid X of size n. For std::vector like stuff
 // The largest value on grid X that is smaller than x is returned ("left grid point" is returned).
 template <class T>
-__host__ __device__
 int fit2grid(const double x, const T X) {
 	int n = X.size();
 	if (x < X[0]) {
@@ -128,7 +127,7 @@ void save_vec(T vec, std::string filename ) {
 
 // A function template to save vectors to file, C array style
 template <class T>
-void load_vec(T vec, int size, std::string filename ) {
+void load_vec(T& vec, int size, std::string filename ) {
 	std::cout << "================================================================================" << std::endl;
 	std::cout << "Loading from " << filename << std::endl;
 	std::ifstream filein(filename.c_str());
@@ -142,13 +141,13 @@ void load_vec(T vec, int size, std::string filename ) {
 
 // A function template to save vectors to file, C array style
 template <class T>
-void load_vec(T vec, std::string filename ) {
+void load_vec(T& vec, std::string filename ) {
 	std::cout << "================================================================================" << std::endl;
 	std::cout << "Loading from " << filename << std::endl;
 	std::ifstream filein(filename.c_str());
 	double temp;
 	while (filein >> temp) {
-		vec.pushback(temp);
+		vec.push_back(temp);
 	};
 	filein.close();
 	std::cout << "Done!" << std::endl;
@@ -321,7 +320,7 @@ double chebyeval(int p, double x, double* coeff) {
 // Eval multi-dimensional Chebyshev tensor basis 
 // y = sum T_pi(x_i), i = 1,2,...p
 __host__ __device__
-double chebyeval_multi (const int n_var, double* x, int* size_vec,int* temp_subs, double*coeff) {
+double chebyeval_multi (const int n_var, double* x, int* size_vec,int* temp_subs, double* coeff) {
 	// Note size_vec's elements are p+1 for each var
 	int tot_deg = 1;
 	for (int i = 0; i < n_var; i++) {
@@ -344,4 +343,3 @@ double chebyeval_multi (const int n_var, double* x, int* size_vec,int* temp_subs
 	};
 	return eval;
 };
-

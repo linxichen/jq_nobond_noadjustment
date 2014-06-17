@@ -41,10 +41,10 @@ using namespace thrust;
 #define pz 7
 #define pxxi 7
 #define tol 1e-10
-#define maxiter 1
+#define maxiter 0
 #define kwidth 1.2
 #define bwidth 1.15 
-#define llambda 0.5
+#define llambda 0.2
 
 
 void guess_vfi(const host_vector<double> K, const host_vector<double> Z, const host_vector<double> XXI, host_vector<double> & M, para p, double factor) {
@@ -56,14 +56,16 @@ void guess_vfi(const host_vector<double> K, const host_vector<double> Z, const h
 	load_vec(K_vfi,"./vfi_results/Kgrid.csv");
 	load_vec(Z_vfi,"./vfi_results/Zgrid.csv");
 	load_vec(XXI_vfi,"./vfi_results/XXIgrid.csv");
-	load_vec(M_vfi,"./vfi_results/V.csv");
+	load_vec(M_vfi,"./vfi_results/mopt.csv");
 
 	// Create guesses.
-	for (int i_k=0; i_k<nk; i_k++) {
-		int i_k_vfi = fit2grid(K[i_k],K_vfi.size(),
-		for (int i_z = 0; i_z < nz; i_z++) {
-			for (int i_xxi = 0; i_xxi < nxxi; i_xxi++) {
-				double temp = p.mkss+Pphi[8+0*9]*(K[i_k]-p.kss) + Pphi[8+1*9]*(log(Z[i_z])-log(p.zbar))+ Pphi[8+2*9]*(log(XXI[i_xxi])-log(p.xxibar));
+	for (int i_k=0; i_k<K.size(); i_k++) {
+		int i_k_vfi = fit2grid(K[i_k],K_vfi);
+		for (int i_z = 0; i_z < Z.size(); i_z++) {
+			int i_z_vfi = fit2grid(Z[i_z],Z_vfi);
+			for (int i_xxi = 0; i_xxi < XXI.size(); i_xxi++) {
+				int i_xxi_vfi = fit2grid(XXI[i_xxi],XXI_vfi);
+				double temp = M_vfi[i_k_vfi+i_z_vfi*K_vfi.size()+i_xxi_vfi*K_vfi.size()*Z_vfi.size()];
 				M[i_k+nk*i_z+nk*nz*i_xxi] = factor*temp;
 			};
 		};
@@ -137,6 +139,7 @@ struct findnewM
 		double bbeta = p.bbeta;
 
 		// Load Variables
+		k = K[i_k]; z = Z[i_z]; xxi = XXI[i_xxi];
 		state s(K[i_k],Z[i_z],XXI[i_xxi],p); shadow m(M[index]);
 		control u1, u2;
 
@@ -169,7 +172,7 @@ struct findnewM
 		   )
 		{
 			M_new[index] = ((1-u1.mmu)*z*ttheta*pow(k,ttheta-1)*pow(u1.n,1-ttheta)+1-ddelta)/ctilde;
-			return;
+			goto stop;
 		} else {
 			goto case2;
 		}; 
@@ -206,6 +209,9 @@ struct findnewM
 		} else {
 			printf("No solution at k=%f, z=%f, xxi=%f, m=%f.\nPolicies are: c=%f, ctilde=%f, kplus=%f, mu=%f, n=%f\n====================================================\n",s.k,s.z,s.xxi,m.m1,u2.c,ctilde,u2.kplus,u2.mmu,u2.n);
 		};
+
+stop:
+		int shit = 0;
 	};
 };
 
@@ -391,8 +397,8 @@ int main(int argc, char** argv)
 	host_vector<double> h_shockgrids(2*nz);
 	double* h_shockgrids_ptr = raw_pointer_cast(h_shockgrids.data());
 	double* h_P_ptr = raw_pointer_cast(h_P.data());
-	gridgen_fptr linspace_fptr = &linspace; // select linspace as grid gen
-	tauchen_vec(2,nz,4,p.A,p.Ssigma_e,h_shockgrids_ptr,h_P_ptr,linspace_fptr);
+	gridgen_fptr chebyspace_fptr = &chebyspace; // select linspace as grid gen
+	tauchen_vec(2,nz,4,p.A,p.Ssigma_e,h_shockgrids_ptr,h_P_ptr,chebyspace_fptr);
 	for (int i_shock = 0; i_shock < nz; i_shock++) {
 		h_Z[i_shock] = p.zbar*exp(h_shockgrids[i_shock+0*nz]);
 		h_XXI[i_shock] = p.xxibar*exp(h_shockgrids[i_shock+1*nz]);
@@ -403,7 +409,7 @@ int main(int argc, char** argv)
 	chebyroots(nxxi,h_XXI_cheby_ptr);
 
 	// Create Initial M generated from linear solution
-	// guess_linear(h_K, h_Z, h_XXI, h_M, p, 5.0) ;
+	guess_vfi(h_K, h_Z, h_XXI, h_M, p, 1.0); 
 
 	// Copy to the device
 	device_vector<double> d_K = h_K;
@@ -494,7 +500,7 @@ int main(int argc, char** argv)
 	// Main iterations
 	double diff = 10; int iter = 0;
 	while ((diff>tol)&&(iter<maxiter)){
-		// Find the current M at each state. Does y = A*x
+		// Find the current M at each state. Does y = A*x/ M = X*coeff
 		cublasDgemv(
 				handle,	// cuBlas handle
 				CUBLAS_OP_N, // N means don't transpose A
@@ -572,7 +578,11 @@ int main(int argc, char** argv)
 
 	// Copy back to host and print to file
 	h_coeff = d_coeff;
+	h_M_new = d_M_new;
+	h_M = d_M;
     save_vec(h_coeff,"./fpiter_results/coeff.csv");
+    save_vec(h_M,"./fpiter_results/M.csv");
+    save_vec(h_M_new,"./fpiter_results/M_new.csv");
     return 0;
 };
 
