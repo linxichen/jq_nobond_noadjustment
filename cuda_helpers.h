@@ -52,6 +52,33 @@ int fit2grid(const double x, const int n, const double* X) {
 	}
 };
 
+// This function fit a valuex x to a grid X of size n. For std::vector like stuff
+// The largest value on grid X that is smaller than x is returned ("left grid point" is returned).
+template <class T>
+__host__ __device__
+int fit2grid(const double x, const T X) {
+	int n = X.size();
+	if (x < X[0]) {
+		return 0;
+	} else if (x > X[n-1]) {
+		return n-1;
+	} else {
+		int left=0; int right=n-1; int mid=(n-1)/2;
+		while(right-left>1) {
+			mid = (left + right)/2;
+			if (X[mid]==x) {
+				return mid;
+			} else if (X[mid]<x) {
+				left = mid;
+			} else {
+				right = mid;
+			};
+
+		};
+		return left;
+	}
+};
+
 // A function template to display vectors, C array style
 template <class T>
 void display_vec(T vec, int size) {
@@ -119,9 +146,9 @@ void load_vec(T vec, std::string filename ) {
 	std::cout << "================================================================================" << std::endl;
 	std::cout << "Loading from " << filename << std::endl;
 	std::ifstream filein(filename.c_str());
-	int size = vec.size();
-	for (int i = 0; i < size; i++) {
-		filein >> vec[i]; 
+	double temp;
+	while (filein >> temp) {
+		vec.pushback(temp);
 	};
 	filein.close();
 	std::cout << "Done!" << std::endl;

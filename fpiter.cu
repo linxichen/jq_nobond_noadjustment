@@ -42,11 +42,33 @@ using namespace thrust;
 #define pxxi 7
 #define tol 1e-10
 #define maxiter 1
-#define kwidth 0.5
+#define kwidth 1.2
 #define bwidth 1.15 
 #define llambda 0.5
 
 
+void guess_vfi(const host_vector<double> K, const host_vector<double> Z, const host_vector<double> XXI, host_vector<double> & M, para p, double factor) {
+	// Try results from vfi iteration
+	host_vector<double> K_vfi;
+	host_vector<double> Z_vfi;
+	host_vector<double> XXI_vfi;
+	host_vector<double> M_vfi;
+	load_vec(K_vfi,"./vfi_results/Kgrid.csv");
+	load_vec(Z_vfi,"./vfi_results/Zgrid.csv");
+	load_vec(XXI_vfi,"./vfi_results/XXIgrid.csv");
+	load_vec(M_vfi,"./vfi_results/V.csv");
+
+	// Create guesses.
+	for (int i_k=0; i_k<nk; i_k++) {
+		int i_k_vfi = fit2grid(K[i_k],K_vfi.size(),
+		for (int i_z = 0; i_z < nz; i_z++) {
+			for (int i_xxi = 0; i_xxi < nxxi; i_xxi++) {
+				double temp = p.mkss+Pphi[8+0*9]*(K[i_k]-p.kss) + Pphi[8+1*9]*(log(Z[i_z])-log(p.zbar))+ Pphi[8+2*9]*(log(XXI[i_xxi])-log(p.xxibar));
+				M[i_k+nk*i_z+nk*nz*i_xxi] = factor*temp;
+			};
+		};
+	};
+};
 void guess_linear(const host_vector<double> K, const host_vector<double> Z, const host_vector<double> XXI, host_vector<double> & M, para p, double factor) {
 	// Initialize matrices
 	int n = 9; int n_jump = 8; int n_shock = 2;
@@ -296,10 +318,8 @@ int main(int argc, char** argv)
 	coeff[8] = 9;
 	cout << chebyeval_multi(2,x,size_vec,subs,coeff) << endl;
 
-	// Initialize Parameters
-	para p;
-
 	// Set Model Parameters
+	para p;
 	p.bbeta = 0.9825;
 	p.ddelta = 0.025;
 	p.ttheta = 0.36;
@@ -351,7 +371,7 @@ int main(int argc, char** argv)
 	host_vector<double> h_X(nk*nz*nxxi*(1+pk)*(1+pz)*(1+pxxi)); 
 	host_vector<double> h_projector((1+pk)*(1+pz)*(1+pxxi)*nk*nz*nxxi); 
 	host_vector<double> h_M(nk*nz*nxxi,0.5*p.mkss); 
-	host_vector<double> h_M_new(nk*nz*nxxi,p.mkss); 
+	host_vector<double> h_M_new(nk*nz*nxxi,0.5*p.mkss); 
 	host_vector<double> h_coeff((1+pk)*(1+pz)*(1+pxxi),0.1); 
 	host_vector<double> h_coeff_temp((1+pk)*(1+pz)*(1+pxxi),0.1); 
 	host_vector<double> h_coeff_new((1+pk)*(1+pz)*(1+pxxi),0.1); 
@@ -361,8 +381,8 @@ int main(int argc, char** argv)
 	chebyroots(nk,h_K_cheby_ptr);
 	h_K = h_K_cheby;
 	double* h_K_ptr = raw_pointer_cast(h_K.data());
-	double minK = (1-kwidth)*p.kss;
-	double maxK = (1+kwidth)*p.kss;
+	double minK = (1/kwidth)*p.kss;
+	double maxK = (1*kwidth)*p.kss;
 	cout << "minK: " << minK << endl;
 	cout << "maxK: " << maxK << endl;
 	fromchebydomain(minK, maxK, nk, h_K_ptr);
