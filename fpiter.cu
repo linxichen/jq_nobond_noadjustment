@@ -41,10 +41,9 @@ using namespace thrust;
 #define pz 7
 #define pxxi 7
 #define tol 1e-10
-#define maxiter 0
-#define kwidth 0.2
+#define maxiter 1
+#define kwidth 0.5
 #define bwidth 1.15 
-#define mkwidth 15.0 // has to be a double 
 #define llambda 0.5
 
 
@@ -116,8 +115,7 @@ struct findnewM
 		double bbeta = p.bbeta;
 
 		// Load Variables
-		k = K[i_k]; z = Z[i_z]; xxi = XXI[i_xxi];
-		state s(k,z,xxi,p); shadow m(M[index]);
+		state s(K[i_k],Z[i_z],XXI[i_xxi],p); shadow m(M[index]);
 		control u1, u2;
 
 		// Case 1: Binding
@@ -352,8 +350,8 @@ int main(int argc, char** argv)
 	host_vector<double> h_flag(nk*nb*nz*nxxi, 0); 
 	host_vector<double> h_X(nk*nz*nxxi*(1+pk)*(1+pz)*(1+pxxi)); 
 	host_vector<double> h_projector((1+pk)*(1+pz)*(1+pxxi)*nk*nz*nxxi); 
-	host_vector<double> h_M(nk*nz*nxxi); 
-	host_vector<double> h_M_new(nk*nz*nxxi); 
+	host_vector<double> h_M(nk*nz*nxxi,0.5*p.mkss); 
+	host_vector<double> h_M_new(nk*nz*nxxi,p.mkss); 
 	host_vector<double> h_coeff((1+pk)*(1+pz)*(1+pxxi),0.1); 
 	host_vector<double> h_coeff_temp((1+pk)*(1+pz)*(1+pxxi),0.1); 
 	host_vector<double> h_coeff_new((1+pk)*(1+pz)*(1+pxxi),0.1); 
@@ -385,7 +383,7 @@ int main(int argc, char** argv)
 	chebyroots(nxxi,h_XXI_cheby_ptr);
 
 	// Create Initial M generated from linear solution
-	guess_linear(h_K, h_Z, h_XXI, h_M, p, 5.0) ;
+	// guess_linear(h_K, h_Z, h_XXI, h_M, p, 5.0) ;
 
 	// Copy to the device
 	device_vector<double> d_K = h_K;

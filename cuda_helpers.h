@@ -99,6 +99,35 @@ void save_vec(T vec, std::string filename ) {
 	std::cout << "================================================================================" << std::endl;
 };
 
+// A function template to save vectors to file, C array style
+template <class T>
+void load_vec(T vec, int size, std::string filename ) {
+	std::cout << "================================================================================" << std::endl;
+	std::cout << "Loading from " << filename << std::endl;
+	std::ifstream filein(filename.c_str());
+	for (int i = 0; i < size; i++) {
+		filein >> vec[i]; 
+	};
+	filein.close();
+	std::cout << "Done!" << std::endl;
+	std::cout << "================================================================================" << std::endl;
+};
+
+// A function template to save vectors to file, C array style
+template <class T>
+void load_vec(T vec, std::string filename ) {
+	std::cout << "================================================================================" << std::endl;
+	std::cout << "Loading from " << filename << std::endl;
+	std::ifstream filein(filename.c_str());
+	int size = vec.size();
+	for (int i = 0; i < size; i++) {
+		filein >> vec[i]; 
+	};
+	filein.close();
+	std::cout << "Done!" << std::endl;
+	std::cout << "================================================================================" << std::endl;
+};
+
 // Newton's Method with bracketing, i.e. we know on two points the function differs in sign.
 // Codes from Numerical Recipes 3rd. Ed.
 // BEWARE: The stopping criteria is not right yet.
