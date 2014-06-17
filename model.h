@@ -258,7 +258,7 @@ struct notbinding_hour {
 	};
 };
 
-// struct of variables implied by natural state, and shadow value
+// struct of variables implied by natural state, optionally shadow value/kplus tomorrow
 struct control {
 	// Data member
 	double kplus, c, n, w, d, mmu, Y, lhs1;
@@ -292,6 +292,31 @@ struct control {
 			d = c - w*n;
 		};
 	};
+	
+	// finding the control variables (VFI)
+	__host__ __device__
+	void compute(state s, state splus, para p, int binding) {
+		if (binding == 1) {
+			// Case 1: Binding
+			double k = s.k;
+			double xxi = s.xxi;
+			double zkttheta = s.zkttheta;
+			kplus = splus.k;
+			n = pow(xxi*kplus/zkttheta,1/(1-p.ttheta));
+			Y = xxi*kplus;
+			c = Y + (1-p.ddelta)*k - kplus;
+			mmu = 1-p.aalpha*c/( (1-n)*(1-p.ttheta)*Y/n );
+		};
+
+		if (binding == 0) {
+			// Case 2: Not Binding
+			double k = s.k;
+			double zkttheta = s.zkttheta;
+			kplus = splus.k;
+			n = newton(notbinding_hour(s,splus,p),1e-5,1.0-1e-5,0.3);
+			Y = zkttheta*pow(n,1-p.ttheta);
+			mmu = 0;
+			c = Y + (1-p.ddelta)*k - kplus; 
+		};
+	};
 };
-
-

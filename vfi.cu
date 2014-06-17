@@ -34,103 +34,13 @@
 // Includes, C++ codes
 #include "cppcode.h"
 
+// Includes, model
+#include "model.h"
+
 using namespace std;
 using namespace thrust;
 
-// Define an class that contains parameters and steady states
-struct para_struct {
-	// Model parameters
-	double aalpha;
-	double bbeta ;
-	double ddelta;
-	double ttheta;
-	double kkappa;
-	double ttau  ;
-	double xxibar;
-	double zbar  ;
-	double dbar  ;
-	double rrhozz;
-	double rrhozxxi;
-	double rrhoxxiz;
-	double rrhoxxixxi;
-	double var_epsz;
-	double var_epsxxi;
-	double A[4];
-	double Ssigma_e[4];
-
-	// Steady States
-	double kss;
-	double nss;
-	double css;
-	double wss;
-	double dss;
-	double mmuss;
-	double mkss;
-	double yss;
-
-
-	// Find steady state and find aalpha based steady state target
-	__host__ __device__
-	void complete() {
-		// Fill A and Ssigma_e
-		A[0] = rrhozz; A[2] = rrhozxxi;
-		A[1] = rrhoxxiz; A[3] = rrhoxxixxi;
-		Ssigma_e[0] = var_epsz*var_epsz;
-		Ssigma_e[3] = var_epsxxi*var_epsxxi;
-
-		// Find aalpha based on SS computation
-		double kovern = pow(xxibar,1/(ttheta-1));
-		double covern = pow(kovern,ttheta) - ddelta*kovern;
-		mmuss = 1 - ( bbeta*(1-ddelta)-1+xxibar )/( xxibar*(1-bbeta*ttheta)  );
-		aalpha = double(0.7/0.3)*(1/covern)*(1-mmuss)*(1-ttheta)*pow(kovern,ttheta);
-		double G = ( (1-mmuss)*(1-ttheta)*pow(kovern,ttheta) ) / ( aalpha*covern );
-		nss = G/(1+G);
-		css = nss*covern;
-		kss = nss*kovern;
-		wss = aalpha*css/(1-nss);
-		dss = css - wss*nss;
-		mkss = (1-ddelta+(1-mmuss)*zbar*ttheta*pow(kss,ttheta-1)*pow(nss,1-ttheta))/css;
-		yss = zbar*pow(kss,ttheta)*pow(nss,1-ttheta);
-	};
-
-	// Export parameters to a .m file in MATLAB syntax
-	__host__
-	void exportmatlab(std::string filename) {
-		std::ofstream fileout(filename.c_str(), std::ofstream::trunc);
-		// Accuracy Controls
-		fileout << setprecision(16) << "nk=" << nk << ";"<< endl;
-		fileout << setprecision(16) << "nz=" << nz << ";"<< endl;
-		fileout << setprecision(16) << "nxxi=" << nxxi << ";"<< endl;
-		fileout << setprecision(16) << "nm1=" << nm1 << ";"<< endl;
-
-		// Model Parameters
-		fileout << setprecision(16) << "aalpha=" << aalpha << ";"<< endl;
-		fileout << setprecision(16) << "bbeta=" << bbeta << ";"<< endl;
-		fileout << setprecision(16) << "ddelta=" << ddelta << ";"<< endl;
-		fileout << setprecision(16) << "ttheta=" << ttheta << ";"<< endl;
-		fileout << setprecision(16) << "xxibar=" << xxibar << ";"<< endl;
-		fileout << setprecision(16) << "zbar=" << zbar << ";"<< endl;
-		fileout << setprecision(16) << "rrhozz=" << rrhozz << ";"<< endl;
-		fileout << setprecision(16) << "rrhozxxi=" << rrhozxxi << ";"<< endl;
-		fileout << setprecision(16) << "rrhoxxiz=" << rrhoxxiz << ";"<< endl;
-		fileout << setprecision(16) << "rrhoxxixxi=" << rrhoxxixxi << ";"<< endl;
-		fileout << setprecision(16) << "ssigmaepsz=" << sqrt(var_epsz) << ";"<< endl;
-		fileout << setprecision(16) << "ssigmaepsxxi=" << sqrt(var_epsxxi) << ";"<< endl;
-
-		// Steady States
-		fileout << setprecision(16) << "kss=" << kss << ";"<< endl;
-		fileout << setprecision(16) << "nss=" << nss << ";"<< endl;
-		fileout << setprecision(16) << "css=" << css << ";"<< endl;
-		fileout << setprecision(16) << "wss=" << wss << ";"<< endl;
-		fileout << setprecision(16) << "dss=" << dss << ";"<< endl;
-		fileout << setprecision(16) << "mmuss=" << mmuss << ";"<< endl;
-		fileout << setprecision(16) << "mkss=" << mkss << ";"<< endl;
-		fileout << setprecision(16) << "yss=" << yss << ";"<< endl;
-		fileout.close();
-	};
-};
-
-void guess_linear(const host_vector<double> K, const host_vector<double> Z, const host_vector<double> XXI, host_vector<double> & V1_low, host_vector<double> & V1_high, para_struct para, double factor_low, double factor_high) {
+void guess_linear(const host_vector<double> K, const host_vector<double> Z, const host_vector<double> XXI, host_vector<double> & V1_low, host_vector<double> & V1_high, para p, double factor_low, double factor_high) {
 	// Initialize matrices
 	int n = 9; int n_jump = 8; int n_shock = 2;
 	host_vector<double> A(n*n,0); 
@@ -140,61 +50,7 @@ void guess_linear(const host_vector<double> K, const host_vector<double> Z, cons
    	host_vector<double> Pphi(n*(n-n_jump+n_shock),0);
 
 	// Fill in matrices.
-	// HH Budget. Correct.
-	B[0+3*n] = para.nss;
-	B[0+2*n] = para.wss;
-	B[0+4*n] = 1;
-	B[0+1*n] = -1;
-
-	// Labor Demand. Correct
-	B[1+5*n] = (para.ttheta-1)*para.yss/para.nss;
-	B[1+6*n] = (1-para.ttheta)*(1-para.mmuss)/para.nss;
-	B[1+2*n] = -(1-para.ttheta)*(1-para.mmuss)*para.yss/(para.nss*para.nss);
-	B[1+3*n] = -1;
-
-	// Labor Supply. Correct
-	B[2+1*n] = para.aalpha/(1-para.nss);
-	B[2+2*n] = para.aalpha*para.css/((1-para.nss)*(1-para.nss));
-	B[2+3*n] = -1;
-
-	// Capital Demand. Correct.
-	A[3+8*n] = para.bbeta; 
-	B[3+1*n] = -(1-para.mmuss*para.xxibar)/(para.css*para.css); 
-	B[3+5*n] = -para.xxibar/para.css; 
-	C[3+1*n] = -para.mmuss*para.xxibar/para.css;
-
-	// Resource Constraint. Correct
-	A[4+0*n] = 1; 
-	B[4+0*n] = 1-para.ddelta; 
-	B[4+6*n] = 1; 
-	B[4+1*n] = -1;
-
-	// Financial Constraint. Fixed.
-	A[5+0*n] = para.xxibar;
-	B[5+6*n] = 1;
-	C[5+1*n] = -para.xxibar*para.kss;
-
-	// Output Definition. Correct
-	C[6+0*n] = para.yss;
-	B[6+0*n] = para.ttheta*para.yss/para.kss;
-	B[6+2*n] = (1-para.ttheta)*para.yss/para.nss;
-	B[6+6*n] = -1;
-
-	// Investment Definition. Correct
-	A[7+0*n] = 1;
-	B[7+7*n] = 1;
-	B[7+0*n] = 1-para.ddelta;
-
-	// MK defintion:
-	B[8+1*n] = -pow(para.css,-2)*(1-para.ddelta+(1-para.mmuss)*para.ttheta*para.yss/para.kss); 
-	B[8+5*n] = -para.ttheta*para.yss/(para.css*para.kss); 
-	B[8+6*n] = (1-para.mmuss)*para.ttheta/(para.css*para.kss); 
-	B[8+0*n] = -(1-para.mmuss)*para.ttheta*para.yss*pow(para.kss,-2)/para.css;
-	B[8+8*n] = -1;
-
-	for (int i=0; i< n_shock*n_shock; i++) {
-		rrho[i] = para.A[i];
-	};
+	linearizedmodel(A.data(),B.data(),C.data(),rrho.data(),n,n_shock,p);
 
 	// Call linear solver
 	linearQZ(A.data(),B.data(),C.data(),rrho.data(),n,n_jump,n_shock,Pphi.data());
@@ -203,7 +59,7 @@ void guess_linear(const host_vector<double> K, const host_vector<double> Z, cons
 	for (int i_k=0; i_k<nk; i_k++) {
 		for (int i_z = 0; i_z < nz; i_z++) {
 			for (int i_xxi = 0; i_xxi < nxxi; i_xxi++) {
-				double temp = para.mkss+Pphi[8+0*9]*(K[i_k]-para.kss) + Pphi[8+1*9]*(log(Z[i_z])-log(para.zbar))+ Pphi[8+2*9]*(log(XXI[i_xxi])-log(para.xxibar));
+				double temp = p.mkss+Pphi[8+0*9]*(K[i_k]-p.kss) + Pphi[8+1*9]*(log(Z[i_z])-log(p.zbar))+ Pphi[8+2*9]*(log(XXI[i_xxi])-log(p.xxibar));
 				V1_low[i_k+nk*i_z+nk*nz*i_xxi] = factor_low*temp;
 				V1_high[i_k+nk*i_z+nk*nz*i_xxi] = factor_high*temp;
 			};
@@ -211,105 +67,15 @@ void guess_linear(const host_vector<double> K, const host_vector<double> Z, cons
 	};
 };
 
-// Define state struct that contain things known to shrink functor
-struct state_struct {
-	// Data member
-	double k, z, xxi, zkttheta, kplus;
-
-	// Constructor
-	__host__ __device__
-	state_struct(double _k, double _z, double _xxi, double _zkttheta, double _kplus) {
-		k = _k;
-		z = _z;
-		xxi = _xxi;
-		zkttheta = _zkttheta;
-		kplus = _kplus;
-	};
-	// Pack Things into
-	__host__ __device__
-	void load(double _k, double _z, double _xxi, double _zkttheta, double _kplus) {
-		k = _k;
-		z = _z;
-		xxi = _xxi;
-		zkttheta = _zkttheta;
-		kplus = _kplus;
-	};
-
-	// Replace only the kplus
-	__host__ __device__
-	void replace(double _kplus) {
-		kplus = _kplus;
-	};
-};
-
-struct case2_hour {
-	// Data Member
-	double c0, coneminusttheta, cminusttheta;
-	double ttheta;
-
-	// Constructor
-	__host__ __device__
-	case2_hour(state_struct s, para_struct para) {
-		c0 = para.aalpha*(1-para.ddelta)*s.k - para.aalpha*s.kplus;
-		coneminusttheta = (para.aalpha+1-para.ttheta)*s.zkttheta;
-		cminusttheta = (para.ttheta-1)*s.zkttheta;
-		ttheta = para.ttheta;
-	};
-
-	// The function
-	__host__ __device__
-	double operator()(double n) {
-		return c0 + coneminusttheta*pow(n,1-ttheta) + cminusttheta*pow(n,-ttheta);
-	};
-
-	// The derivative
-	__host__ __device__
-	double prime(double n) {
-		return (1-ttheta)*coneminusttheta*pow(n,-ttheta) + (-ttheta)*cminusttheta*pow(n,-ttheta-1);
-	};
-};
-
-// Define a struct that contains variables implied by augmented state
-struct control_struct {
-	// Data member
-	double c, n, mmu, Y;
-
-	// Constructor and finding the control variables
-	__host__ __device__
-	void compute(state_struct state, para_struct para, int binding) {
-		if (binding == 1) {
-			// Case 1: Binding
-			double k = state.k;
-			double xxi = state.xxi;
-			double zkttheta = state.zkttheta;
-			double kplus = state.kplus;
-			n = pow(xxi*kplus/(zkttheta),1/(1-para.ttheta));
-			Y = xxi*kplus;
-			c = Y+(1-para.ddelta)*k-kplus;
-			mmu = 1-para.aalpha*c/((1-n)*(1-para.ttheta)*Y/n);	
-		};
-
-		if (binding == 0) {
-			// Case 2: Not Binding
-			double k = state.k;
-			double zkttheta = state.zkttheta;
-			double kplus = state.kplus;
-			n = newton(case2_hour(state,para),1e-5,1.0-1e-5,0.3);
-			Y = zkttheta*pow(n,1-para.ttheta);
-			mmu = 0;
-			c = Y+(1-para.ddelta)*k-kplus;
-		};
-	};
-};
-
 /// This function finds the value of RHS given k', k, z, xxi
 __host__ __device__
-double rhsvalue (state_struct s, int i_z, int i_xxi, int i_kplus, double* EV, para_struct para, int & binding) {
+double rhsvalue (state s, double kplus, int i_z, int i_xxi, int i_kplus, double* EV, para p, int & binding) {
 	double temp1 = -9999999;
 	double temp2 = -9999999;
-	control_struct u1, u2;
-	u1.compute(s,para,1);
-	u2.compute(s,para,0);
+	control u1, u2;
+	state splus(kplus,1,1,p);
+	u1.compute(s,splus,p,1);
+	u2.compute(s,splus,p,0);
 	if (
 			// (u1.mmu >= 0) &&
 			(u1.c > 0 ) &&
@@ -317,16 +83,16 @@ double rhsvalue (state_struct s, int i_z, int i_xxi, int i_kplus, double* EV, pa
 			(u1.n < 1 )
 	   )
 	{
-		temp1 = log(u1.c) + para.aalpha*log(1-u1.n) + para.bbeta*EV[i_kplus+i_z*nk+i_xxi*nk*nz];
+		temp1 = log(u1.c) + p.aalpha*log(1-u1.n) + p.bbeta*EV[i_kplus+i_z*nk+i_xxi*nk*nz];
 	};
 	if (
-			(s.xxi*s.kplus > u2.Y) &&
+			(s.xxi*splus.k > u2.Y) &&
 			(u2.c > 0 ) &&
 			(u2.n > 0 ) &&
 			(u2.n < 1 )
 	   )
 	{
-		temp2 = log(u2.c) + para.aalpha*log(1-u2.n) + para.bbeta*EV[i_kplus+i_z*nk+i_xxi*nk*nz];
+		temp2 = log(u2.c) + p.aalpha*log(1-u2.n) + p.bbeta*EV[i_kplus+i_z*nk+i_xxi*nk*nz];
 	};
 	if (temp1 > temp2) {
 		binding = 1;
@@ -338,15 +104,15 @@ double rhsvalue (state_struct s, int i_z, int i_xxi, int i_kplus, double* EV, pa
 };
 // This find the max using binary search and assumes concavity
 __host__ __device__
-void concavemax(double k, double z, double xxi, double zkttheta, const int left_ind, const int right_ind, const int i_k,const int i_z, const int i_xxi, 
-		double* K, double* EV, double* Vplus, int* koptind, para_struct para) {
+void concavemax(double k, double z, double xxi, const int left_ind, const int right_ind, const int i_k,const int i_z, const int i_xxi, 
+		double* K, double* EV, double* Vplus, int* koptind, para p) {
 	int index = i_k + i_z*nk + i_xxi*nk*nz;
 	int trash;
 
 	if (right_ind-left_ind==1) {
 		double left_value, right_value;
-		left_value = rhsvalue(state_struct(k,z,xxi,zkttheta,K[left_ind]),i_z,i_xxi,left_ind, EV, para, trash);
-		right_value = rhsvalue(state_struct(k,z,xxi,zkttheta,K[right_ind]),i_z,i_xxi,right_ind, EV, para, trash);
+		left_value = rhsvalue(state(k,z,xxi,p),K[left_ind],i_z,i_xxi,left_ind, EV, p, trash);
+		right_value = rhsvalue(state(k,z,xxi,p),K[right_ind],i_z,i_xxi,right_ind, EV, p, trash);
 		if (left_value>right_value) {
 			Vplus[index] = left_value;
 			koptind[index] = left_ind;
@@ -355,9 +121,9 @@ void concavemax(double k, double z, double xxi, double zkttheta, const int left_
 			koptind[index] = right_ind;
 		};
 	} else if (right_ind-left_ind==2) {
-		double value1 = rhsvalue(state_struct(k,z,xxi,zkttheta,K[left_ind]),i_z,i_xxi,left_ind, EV, para, trash);
-		double value2 = rhsvalue(state_struct(k,z,xxi,zkttheta,K[left_ind+1]),i_z,i_xxi,left_ind+1, EV, para, trash);
-		double value3 = rhsvalue(state_struct(k,z,xxi,zkttheta,K[right_ind]),i_z,i_xxi,right_ind, EV, para, trash);
+		double value1 = rhsvalue(state(k,z,xxi,p),K[left_ind],i_z,i_xxi,left_ind, EV, p, trash);
+		double value2 = rhsvalue(state(k,z,xxi,p),K[left_ind+1],i_z,i_xxi,left_ind+1, EV, p, trash);
+		double value3 = rhsvalue(state(k,z,xxi,p),K[right_ind],i_z,i_xxi,right_ind, EV, p, trash);
 		if (value1 < value2) {
 			if (value2 < value3) {
 				Vplus[index] = value3;
@@ -382,8 +148,8 @@ void concavemax(double k, double z, double xxi, double zkttheta, const int left_
 		while (ind4 - ind1 > 2) {
 			ind2 = (ind1+ind4)/2;
 			ind3 = ind2 + 1;
-			value2 = rhsvalue(state_struct(k,z,xxi,zkttheta,K[ind2]),i_z,i_xxi,ind2, EV, para, trash);
-			value3 = rhsvalue(state_struct(k,z,xxi,zkttheta,K[ind3]),i_z,i_xxi,ind3, EV, para, trash);
+			value2 = rhsvalue(state(k,z,xxi,p),K[ind2],i_z,i_xxi,ind2, EV, p, trash);
+			value3 = rhsvalue(state(k,z,xxi,p),K[ind3],i_z,i_xxi,ind3, EV, p, trash);
 			if (value2 < value3) {
 				ind1 = ind2;
 			} else {
@@ -392,9 +158,9 @@ void concavemax(double k, double z, double xxi, double zkttheta, const int left_
 		};
 
 		// Now the number of candidates is reduced to three
-		value1 = rhsvalue(state_struct(k,z,xxi,zkttheta,K[ind1]),i_z,i_xxi,ind1, EV, para, trash);
-		value2 = rhsvalue(state_struct(k,z,xxi,zkttheta,K[ind4-1]),i_z,i_xxi,ind4-1, EV, para, trash);
-		value3 = rhsvalue(state_struct(k,z,xxi,zkttheta,K[ind4]),i_z,i_xxi,ind4, EV, para,trash);
+		value1 = rhsvalue(state(k,z,xxi,p),K[ind1],i_z,i_xxi,ind1, EV, p, trash);
+		value2 = rhsvalue(state(k,z,xxi,p),K[ind4-1],i_z,i_xxi,ind4-1, EV, p, trash);
+		value3 = rhsvalue(state(k,z,xxi,p),K[ind4],i_z,i_xxi,ind4, EV, p,trash);
 
 		if (value1 < value2) {
 			if (value2 < value3) {
@@ -425,7 +191,7 @@ struct RHS
 	double *Vplus;
 	int *koptind;
 	double *EV;
-	para_struct para;
+	para p;
 
 	// Construct this object, create util from _util, etc.
 	__host__ __device__
@@ -434,14 +200,14 @@ struct RHS
 	double* Vplus_ptr,
 	int* koptind_ptr,
 	double* EV_ptr,
-	para_struct _para)
+	para _p)
 	{
 		K = K_ptr; Z = Z_ptr; XXI = XXI_ptr;
 		V = V_ptr;
 		Vplus = Vplus_ptr;
 		koptind = koptind_ptr;
 		EV = EV_ptr;
-		para = _para;
+		p = _p;
 	};
 
 	__host__ __device__
@@ -459,10 +225,9 @@ struct RHS
 
 		// Find and construct state and control, otherwise they won't update in the for loop
 		double k =K[i_k]; double z=Z[i_z]; double xxi=XXI[i_xxi];
-		double zkttheta = z*pow(k,para.ttheta); 
 
 		// Exploit concavity to update V
-		concavemax(k, z, xxi, zkttheta, 0, nk-1, i_k, i_z, i_xxi, K, EV, Vplus, koptind, para);
+		concavemax(k, z, xxi, 0, nk-1, i_k, i_z, i_xxi, K, EV, Vplus, koptind, p);
 	};
 };	
 
@@ -470,11 +235,11 @@ struct findpolicy {
 	// Data member
 	double *K, *Z, *XXI,  *EV, *copt, *kopt, *nopt, *mmuopt;
 	int * koptind;
-	para_struct para;
+	para p;
 
 	// Constructor
 	__host__ __device__
-	findpolicy(double* K_ptr, double* Z_ptr, double* XXI_ptr, int* koptind_ptr, double* EV_ptr, double* copt_ptr, double* kopt_ptr, double* nopt_ptr, double* mmuopt_ptr, para_struct _para) {
+	findpolicy(double* K_ptr, double* Z_ptr, double* XXI_ptr, int* koptind_ptr, double* EV_ptr, double* copt_ptr, double* kopt_ptr, double* nopt_ptr, double* mmuopt_ptr, para _p) {
 		K = K_ptr;
 		Z = Z_ptr;
 		XXI = XXI_ptr;
@@ -484,7 +249,7 @@ struct findpolicy {
 		kopt = kopt_ptr;
 		nopt = nopt_ptr;
 		mmuopt = mmuopt_ptr;
-		para = _para;
+		p = _p;
 	};
 
 	// Main operator
@@ -506,23 +271,23 @@ struct findpolicy {
 		double z = Z[i_z]; 
 		double xxi = XXI[i_xxi];
 		double kplus = K[koptind[index]];
-		double zkttheta = z*pow(k,para.ttheta);
 		int binding;
-		state_struct s(k,z,xxi,zkttheta,kplus);
-		rhsvalue(s, i_z, i_xxi, koptind[index], EV, para, binding);
-		control_struct u;
+		state s(k,z,xxi,p);
+		state splus(kplus,z,xxi,p);
+		rhsvalue(s, kplus, i_z, i_xxi, koptind[index], EV, p, binding);
+		control u;
 
 		// Try not binding first
 		if (binding==0) {
-			u.compute(s,para,0);
+			u.compute(s,splus,p,0);
 			copt[index] = u.c;
-			kopt[index] = s.kplus;
+			kopt[index] = splus.k;
 			nopt[index] = u.n;
 			mmuopt[index] = u.mmu;
 		} else {
-			u.compute(s,para,1);
+			u.compute(s,splus,p,1);
 			copt[index] = u.c;
-			kopt[index] = s.kplus;
+			kopt[index] = splus.k;
 			nopt[index] = u.n;
 			mmuopt[index] = u.mmu;
 		};
@@ -554,34 +319,34 @@ struct myDist {
 int main(int argc, char ** argv)
 {
 	// Initialize Parameters
-	para_struct para;
+	para p;
 
 	// Set Model Parameters
-	para.bbeta = 0.9825;
-	para.ddelta = 0.025;
-	para.ttheta = 0.36;
-	para.kkappa = 0.1460;
-	para.ttau = 0.3500;
-	para.xxibar = 0.11;
-	para.zbar = 1.0;
-	para.rrhozz = 0.9457;
-	para.rrhoxxiz = 0.0321;
-	para.rrhozxxi =-0.0091;
-	para.rrhoxxixxi = 0.9703;
-	para.var_epsz = 0.0045*0.0045;
-	para.var_epsxxi = 0.0098*0.0098;
-	para.complete(); // complete all implied para, find S-S
+	p.bbeta = 0.9825;
+	p.ddelta = 0.025;
+	p.ttheta = 0.36;
+	p.kkappa = 0.1460;
+	p.ttau = 0.3500;
+	p.xxibar = 0.11;
+	p.zbar = 1.0;
+	p.rrhozz = 0.9457;
+	p.rrhoxxiz = 0.0321;
+	p.rrhozxxi =-0.0091;
+	p.rrhoxxixxi = 0.9703;
+	p.var_epsz = 0.0045*0.0045;
+	p.var_epsxxi = 0.0098*0.0098;
+	p.complete(); // complete all implied para, find S-S
 
-	cout << setprecision(16) << "kss: " << para.kss << endl;
-	cout << setprecision(16) << "zss: " << para.zbar << endl;
-	cout << setprecision(16) << "xxiss: " <<para.xxibar << endl;
-	cout << setprecision(16) << "mkss: " << para.mkss << endl;
-	cout << setprecision(16) << "dss: " << para.dss << endl;
-	cout << setprecision(16) << "css: " << para.css << endl;
-	cout << setprecision(16) << "nss: " << para.nss << endl;
-	cout << setprecision(16) << "wss: " << para.wss << endl;
-	cout << setprecision(16) << "mmuss: " << para.mmuss << endl;
-	cout << setprecision(16) << "aalpha: " << para.aalpha << endl;
+	cout << setprecision(16) << "kss: " << p.kss << endl;
+	cout << setprecision(16) << "zss: " << p.zbar << endl;
+	cout << setprecision(16) << "xxiss: " <<p.xxibar << endl;
+	cout << setprecision(16) << "mkss: " << p.mkss << endl;
+	cout << setprecision(16) << "dss: " << p.dss << endl;
+	cout << setprecision(16) << "css: " << p.css << endl;
+	cout << setprecision(16) << "nss: " << p.nss << endl;
+	cout << setprecision(16) << "wss: " << p.wss << endl;
+	cout << setprecision(16) << "mmuss: " << p.mmuss << endl;
+	cout << setprecision(16) << "aalpha: " << p.aalpha << endl;
 	cout << setprecision(16) << "tol: " << tol << endl;
 
 	// Select Device
@@ -599,15 +364,15 @@ int main(int argc, char ** argv)
 	host_vector<double> h_K(nk); 
 	host_vector<double> h_Z(nz);
 	host_vector<double> h_XXI(nxxi);
-	host_vector<double> h_V(nk*nz*nxxi, (log(para.css)+para.aalpha*log(1-0.3))/(1-para.bbeta));
+	host_vector<double> h_V(nk*nz*nxxi, (log(p.css)+p.aalpha*log(1-0.3))/(1-p.bbeta));
 	host_vector<double> h_Vplus(nk*nz*nxxi,0);
 	host_vector<int> h_koptind(nk*nz*nxxi);
 	host_vector<double> h_EV(nk*nz*nxxi,0.0);
 	host_vector<double> h_P(nz*nxxi*nz*nxxi, 0);
 
 	// Create capital grid
-	double minK = 1/kwidth*para.kss;
-	double maxK = kwidth*para.kss;
+	double minK = 1/kwidth*p.kss;
+	double maxK = kwidth*p.kss;
 	linspace(minK,maxK,nk,raw_pointer_cast(h_K.data()));
 
 	// Create shocks grids
@@ -615,10 +380,10 @@ int main(int argc, char ** argv)
 	double* h_shockgrids_ptr = raw_pointer_cast(h_shockgrids.data());
 	double* h_P_ptr = raw_pointer_cast(h_P.data());
 	gridgen_fptr linspace_fptr = &linspace; // select linspace as grid gen
-	tauchen_vec(2,nz,3,para.A,para.Ssigma_e,h_shockgrids_ptr,h_P_ptr,linspace_fptr);
+	tauchen_vec(2,nz,3,p.A,p.Ssigma_e,h_shockgrids_ptr,h_P_ptr,linspace_fptr);
 	for (int i_shock = 0; i_shock < nz; i_shock++) {
-		h_Z[i_shock] = para.zbar*exp(h_shockgrids[i_shock+0*nz]);
-		h_XXI[i_shock] = para.xxibar*exp(h_shockgrids[i_shock+1*nz]);
+		h_Z[i_shock] = p.zbar*exp(h_shockgrids[i_shock+0*nz]);
+		h_XXI[i_shock] = p.xxibar*exp(h_shockgrids[i_shock+1*nz]);
 	};
 
 	// Obtain initial guess from linear solution
@@ -686,7 +451,7 @@ int main(int argc, char ** argv)
 				d_Vplus_ptr,
 				d_koptind_ptr,
 				d_EV_ptr,
-				para)
+				p)
 		);
 
 		// Find diff 
@@ -737,7 +502,7 @@ int main(int argc, char ** argv)
 	thrust::for_each(
 			begin,
 			end,
-			findpolicy(d_K_ptr, d_Z_ptr, d_XXI_ptr, d_koptind_ptr, d_EV_ptr, d_copt_ptr, d_kopt_ptr, d_nopt_ptr, d_mmuopt_ptr, para)
+			findpolicy(d_K_ptr, d_Z_ptr, d_XXI_ptr, d_koptind_ptr, d_EV_ptr, d_copt_ptr, d_kopt_ptr, d_nopt_ptr, d_mmuopt_ptr, p)
 			);
 
 	// Copy back to host and print to file
@@ -765,7 +530,7 @@ int main(int argc, char ** argv)
 	cout << "Policy functions output completed." << endl;
 
 	// Export parameters to MATLAB
-	para.exportmatlab("./MATLAB/vfi_para.m");
+	p.exportmatlab("./MATLAB/vfi_para.m");
 
 	return 0;
 }

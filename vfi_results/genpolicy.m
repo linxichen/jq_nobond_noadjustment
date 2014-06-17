@@ -11,7 +11,7 @@ XXIgrid = csvread('XXIgrid.csv');
 P = csvread('P.csv');
 
 nk = length(Kgrid); % nb = length(Bgrid);
-nz = length(Zgrid); nxi = length(XXIgrid);
+nz = length(Zgrid); nxxi = length(XXIgrid);
 cd ../MATLAB
 vfi_para;
 cd ../vfi_results;
@@ -30,17 +30,17 @@ mmucuda = csvread('mmuopt.csv');
 % EEerrorcuda = csvread('EEerror.csv');
 
 %% Reshape
-V = reshape(V,[nk,nz,nxi]);
+V = reshape(V,[nk,nz,nxxi]);
 
-koptcuda = reshape(koptcuda,[nk,nz,nxi]);
-coptcuda = reshape(coptcuda,[nk,nz,nxi]);
+koptcuda = reshape(koptcuda,[nk,nz,nxxi]);
+coptcuda = reshape(coptcuda,[nk,nz,nxxi]);
 %Rcuda = reshape(Rcuda,[nk,nz,nxi]);
 %dcuda = reshape(dcuda,[nk,nz,nxi]);
-ncuda = reshape(ncuda,[nk,nz,nxi]);
+ncuda = reshape(ncuda,[nk,nz,nxxi]);
 %wagecuda = reshape(wagecuda,[nk,nz,nxi]);
-mmucuda = reshape(mmucuda,[nk,nz,nxi]);
+mmucuda = reshape(mmucuda,[nk,nz,nxxi]);
 
-P = reshape(P,[nz*nxi nz*nxi]);
+P = reshape(P,[nz*nxxi nz*nxxi]);
 
 % flagcuda = reshape(flagcuda,[nk,nz,nxi]);
 
