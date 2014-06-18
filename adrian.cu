@@ -5,8 +5,8 @@
  */
 
 #define nk 2560
-#define nz 7
-#define nxxi 7
+#define nz 9
+#define nxxi 9
 #define nm1 5120 
 #define tol 1e-6
 #define maxiter 2500
