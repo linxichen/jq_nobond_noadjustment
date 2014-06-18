@@ -4,10 +4,10 @@
  * is the asymmetry of policy functions.
  */
 
-#define nk 256
+#define nk 2560
 #define nz 7
 #define nxxi 7
-#define nm1 2560
+#define nm1 5120 
 #define tol 1e-6
 #define maxiter 2500
 #define kwidth 1.2
@@ -48,6 +48,32 @@
 
 using namespace std;
 using namespace thrust;
+
+void guess_vfi(const host_vector<double> K, const host_vector<double> Z, const host_vector<double> XXI, host_vector<double> & V1_low, host_vector<double> & V1_high, para p, double factor) {
+	// Try results from vfi iteration
+	host_vector<double> K_vfi;
+	host_vector<double> Z_vfi;
+	host_vector<double> XXI_vfi;
+	host_vector<double> M_vfi;
+	load_vec(K_vfi,"./vfi_results/Kgrid.csv");
+	load_vec(Z_vfi,"./vfi_results/Zgrid.csv");
+	load_vec(XXI_vfi,"./vfi_results/XXIgrid.csv");
+	load_vec(M_vfi,"./vfi_results/mopt.csv");
+
+	// Create guesses.
+	for (int i_k=0; i_k<K.size(); i_k++) {
+		int i_k_vfi = fit2grid(K[i_k],K_vfi);
+		for (int i_z = 0; i_z < Z.size(); i_z++) {
+			int i_z_vfi = fit2grid(Z[i_z],Z_vfi);
+			for (int i_xxi = 0; i_xxi < XXI.size(); i_xxi++) {
+				int i_xxi_vfi = fit2grid(XXI[i_xxi],XXI_vfi);
+				double temp = M_vfi[i_k_vfi+i_z_vfi*K_vfi.size()+i_xxi_vfi*K_vfi.size()*Z_vfi.size()];
+				V1_low[i_k+nk*i_z+nk*nz*i_xxi] = 1/factor*temp;
+				V1_high[i_k+nk*i_z+nk*nz*i_xxi] = factor*temp;
+			};
+		};
+	};
+};
 
 void guess_linear(const host_vector<double> K, const host_vector<double> Z, const host_vector<double> XXI, host_vector<double> & V1_low, host_vector<double> & V1_high, para p, double factor_low, double factor_high) {
 	// Initialize matrices
@@ -356,7 +382,7 @@ int main(int argc, char ** argv)
 	};
 
 	// Obtain initial guess from linear solution
-	guess_linear(h_K, h_Z, h_XXI, h_V1_low, h_V1_high, p, 0.3, 3) ;
+	guess_vfi(h_K, h_Z, h_XXI, h_V1_low, h_V1_high, p, 1.1) ;
 
 	// Copy to the device
 	device_vector<double> d_K = h_K;
