@@ -148,6 +148,7 @@ void guess_vfi(const host_vector<double> K, const host_vector<double> Z, const h
 		};
 	};
 };
+
 void guess_linear(const host_vector<double> K, const host_vector<double> Z, const host_vector<double> XXI, host_vector<double> & M, para p, double factor) {
 	// Initialize matrices
 	int n = 9; int n_jump = 8; int n_shock = 2;
