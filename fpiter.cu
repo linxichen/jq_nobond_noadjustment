@@ -32,34 +32,96 @@ using namespace std;
 using namespace thrust;
 
 // #define M_PI 3.14159265358979323846264338328
-#define nk 21
+#define nk 11
 #define nb 1 
-#define nz 13
-#define nxxi 13 
+#define nz 7
+#define nxxi 7
 #define nm1 501 
-#define pk 5
-#define pz 5
-#define pxxi 5
-#define tol 1e-10
+#define pk 4
+#define pz 4
+#define pxxi 4
+#define tol 1e-7
 #define maxiter 1000
-#define kwidth 1.15
+#define kwidth 1.3
 #define bwidth 1.15 
-#define llambda 0.2
+#define llambda 0.7
 
-// This is a very model-specific version of the function it should be.
-// Future modification needs to deal with the creation of temporary array somehow.
-__host__ __device__
-double chebyeval_multi_old ( double k_cheby, double z_cheby, double xxi_cheby, double* coeff ) {
-	double eval = 0;
-	for (int t_xxi=0; t_xxi <= pxxi; t_xxi++) {
-		for (int t_z=0; t_z <= pz; t_z++) {
-			for (int t_k=0; t_k <=pk; t_k++ ) {
-				eval += coeff[t_k+t_z*(1+pk)+t_xxi*(1+pk)*(1+pz)]*
-				        chebypoly(t_k,k_cheby)*chebypoly(t_z,z_cheby)*chebypoly(t_xxi,xxi_cheby);
-			};
+struct findpolicy {
+	// Data member
+	double *K, *Z, *XXI,  *coeff, *copt, *kopt, *nopt, *mmuopt ;
+	double *K_cheby, *Z_cheby, *XXI_cheby;
+	int nkout;
+	para p;
+
+	// Constructor
+	__host__ __device__
+	findpolicy(double* K_ptr, double* K_cheby_ptr, double* Z_ptr, double* Z_cheby_ptr, double* XXI_ptr, double* XXI_cheby_ptr, double* coeff_ptr, double* copt_ptr, double* kopt_ptr, double* nopt_ptr, double* mmuopt_ptr, int _nkout, para _p) {
+		K = K_ptr;
+		Z = Z_ptr;
+		XXI = XXI_ptr;
+		K_cheby = K_cheby_ptr;
+		Z_cheby = Z_cheby_ptr;
+		XXI_cheby = XXI_cheby_ptr;
+		coeff = coeff_ptr;
+		copt = copt_ptr;
+		kopt = kopt_ptr;
+		nopt = nopt_ptr;
+		mmuopt = mmuopt_ptr;
+		nkout = _nkout;
+		p = _p;
+	};
+
+	// Main operator
+	__host__ __device__
+	void operator()(int index) {
+		// Perform ind2sub
+		int subs[3];
+		int size_vec[3];
+		size_vec[0] = nkout;
+		size_vec[1] = nz;
+		size_vec[2] = nxxi;
+		ind2sub(3,size_vec,index,subs);
+		int i_k = subs[0];
+		int i_z = subs[1];
+		int i_xxi = subs[2];
+
+		// Preparation
+		double k = K[i_k];
+		double z = Z[i_z]; 
+		double xxi = XXI[i_xxi];
+		state s(k,z,xxi,p);
+
+		// Find the current M
+		double k_cheby = K_cheby[i_k];
+		double z_cheby = Z_cheby[i_z];
+		double xxi_cheby = XXI_cheby[i_xxi];
+		double arg[3]; 
+		arg[0] = k_cheby;
+		arg[1] = z_cheby;
+		arg[2] = xxi_cheby;
+		size_vec[0] = pk+1;
+		size_vec[1] = pz+1;
+		size_vec[2] = pxxi+1;
+		int temp_subs[3];
+		double m1 = chebyeval_multi(3,arg,size_vec,temp_subs,coeff);
+
+		// Try not binding first
+		control u;
+		shadow m(m1);
+		u.compute(s,m,p,0);
+		if (s.xxi*u.kplus>u.Y) {
+			copt[index] = u.c;
+			kopt[index] = u.kplus;
+			nopt[index] = u.n;
+			mmuopt[index] = u.mmu;
+		} else {
+			u.compute(s,m,p,1);
+			copt[index] = u.c;
+			kopt[index] = u.kplus;
+			nopt[index] = u.n;
+			mmuopt[index] = u.mmu;
 		};
 	};
-	return eval;
 };
 
 void guess_vfi(const host_vector<double> K, const host_vector<double> Z, const host_vector<double> XXI, host_vector<double> & M, para p, double factor) {
@@ -182,7 +244,7 @@ struct findnewM
 			};
 		};
 		ctilde = (1-u1.mmu*s.xxi)/(bbeta*EM);
-		printf("case1 EM = %f\n",EM);
+		// printf("case1 EM = %f\n",EM);
 
 		// Check whether implied policy functions make sense
 		if (
@@ -201,7 +263,6 @@ struct findnewM
 		kplus_cheby = -1 + (u2.kplus-minK)/(maxK-minK)*(2);
 
 		EM = 0;
-		summa = 0;
 		for (int i_zplus=0; i_zplus<nz; i_zplus++) {
 			zplus_cheby = Z_cheby[i_zplus];
 			for (int i_xxiplus=0; i_xxiplus<nxxi; i_xxiplus++) {
@@ -598,13 +659,51 @@ int main(int argc, char** argv)
 	float msecPerMatrixMul = msecTotal;
 	cout << "Time= " << msecPerMatrixMul << " msec, iter= " << iter << endl;
 
+	// Find policy
+	int nkout = 2501;
+	host_vector<double> h_Kgrid(nkout);
+	host_vector<double> h_Kgrid_cheby(nkout);
+	linspace(minK,maxK,nkout,h_Kgrid.data());
+	chebyroots(nkout,h_Kgrid_cheby.data());
+	device_vector<double> d_Kgrid = h_Kgrid;
+	device_vector<double> d_Kgrid_cheby = h_Kgrid_cheby;
+	device_vector<double> d_copt(nkout*nz*nxxi);
+	device_vector<double> d_kopt(nkout*nz*nxxi);
+	device_vector<double> d_nopt(nkout*nz*nxxi);
+	device_vector<double> d_mmuopt(nkout*nz*nxxi);
+	double* d_Kgrid_ptr = raw_pointer_cast(d_Kgrid.data());
+	double* d_Kgrid_cheby_ptr = raw_pointer_cast(d_Kgrid_cheby.data());
+	double* d_copt_ptr = raw_pointer_cast(d_copt.data());
+	double* d_kopt_ptr = raw_pointer_cast(d_kopt.data());
+	double* d_nopt_ptr = raw_pointer_cast(d_nopt.data());
+	double* d_mmuopt_ptr = raw_pointer_cast(d_mmuopt.data());
+
+	thrust::for_each(
+			make_counting_iterator(0),
+			make_counting_iterator(nkout*nz*nxxi),
+			findpolicy(d_Kgrid_ptr, d_Kgrid_cheby_ptr, d_Z_ptr, d_Z_cheby_ptr, d_XXI_ptr, d_XXI_cheby_ptr,d_coeff_ptr,d_copt_ptr,d_kopt_ptr,d_nopt_ptr,d_mmuopt_ptr,nkout,p)
+			);
+
 	// Copy back to host and print to file
 	h_coeff = d_coeff;
 	h_M_new = d_M_new;
 	h_M = d_M;
+	host_vector<double> h_copt = d_copt;
+	host_vector<double> h_kopt = d_kopt;
+	host_vector<double> h_nopt = d_nopt;
+	host_vector<double> h_mmuopt = d_mmuopt;
+    save_vec(h_Kgrid,"./fpiter_results/Kgrid.csv");
+    save_vec(h_Z,"./fpiter_results/Zgrid.csv");
+    save_vec(h_XXI,"./fpiter_results/XXIgrid.csv");
+    save_vec(h_P,"./fpiter_results/P.csv");
+    save_vec(h_copt,"./fpiter_results/copt.csv");
+    save_vec(h_kopt,"./fpiter_results/kopt.csv");
+    save_vec(h_nopt,"./fpiter_results/nopt.csv");
+    save_vec(h_mmuopt,"./fpiter_results/mmuopt.csv");
     save_vec(h_coeff,"./fpiter_results/coeff.csv");
     save_vec(h_M,"./fpiter_results/M.csv");
     save_vec(h_M_new,"./fpiter_results/M_new.csv");
+	p.exportmatlab("./MATLAB/fpiter_para.m");
     return 0;
 };
 

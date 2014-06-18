@@ -233,7 +233,7 @@ __host__ __device__
 double newton(T func, const double x1, const double x2, double x0) {
 // Purpose: Tries to find a root for function named func. Its first derivative is given by func.prime().
 //			func is only defined on [x1,x2] We "pull back" when outside. x0 is the guess.
-	const int newton_maxiter = 30;
+	const int newton_maxiter = 20;
 	const double newton_tol = 1e-5;
 	// Initialize guess and other things
 	double x_old = x0;
