@@ -233,7 +233,7 @@ struct shrink
 		double m1min = V1_low[index]; double m1max = V1_high[index];
 		double m1min_old = m1min;
 		double m1max_old = m1max;
-		double step1 = (m1max-m1min)/double(nm1-1);
+		double step1 = (m1max_old-m1min_old)/double(nm1-1);
 		double tempflag = 0.0;
 
 		// Find and construct state and control, otherwise they won't update in the for loop
@@ -265,13 +265,8 @@ struct shrink
 
 		// Update Vs
 		flag[index] = double(tempflag)/double(nm1);
-		if (tempflag == 0) {
-			Vplus1_high[index] = m1max_old;
-			Vplus1_low[index] = m1min_old; 
-		} else {
-			Vplus1_high[index] = m1max;
-			Vplus1_low[index] = m1min;
-		};
+		Vplus1_high[index] = m1max + step1*int((m1max<m1max_old));
+		Vplus1_low[index] = m1min - step1*int((m1min>m1min_old));
 	};
 };	
 
@@ -308,7 +303,7 @@ int main(int argc, char ** argv)
 	p.ttheta = 0.36;
 	p.kkappa = 0.1460;
 	p.ttau = 0.3500;
-	p.xxibar = 0.12;
+	p.xxibar = 0.11;
 	p.zbar = 1.0;
 	p.rrhozz = 0.9457;
 	p.rrhoxxiz = 0.0321;
@@ -382,7 +377,7 @@ int main(int argc, char ** argv)
 	};
 
 	// Obtain initial guess from linear solution
-	guess_vfi(h_K, h_Z, h_XXI, h_V1_low, h_V1_high, p, 1.1) ;
+	guess_vfi(h_K, h_Z, h_XXI, h_V1_low, h_V1_high, p, 1.05) ;
 
 	// Copy to the device
 	device_vector<double> d_K = h_K;
@@ -436,7 +431,7 @@ int main(int argc, char ** argv)
 	cublasCreate(&handle);
 	
 	double diff = 10; double dist = 100; int iter = 0;
-	while ((diff>tol)&&(iter<maxiter)&&(dist>0.005)){
+	while ((diff>tol)&&(iter<maxiter)){
 		// Find EMs for low and high 
 		cublasDgemm(handle,
 			CUBLAS_OP_N,  
