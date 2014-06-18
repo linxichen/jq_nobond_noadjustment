@@ -34,18 +34,33 @@ using namespace thrust;
 // #define M_PI 3.14159265358979323846264338328
 #define nk 21
 #define nb 1 
-#define nz 11
-#define nxxi 11 
+#define nz 13
+#define nxxi 13 
 #define nm1 501 
-#define pk 7
-#define pz 7
-#define pxxi 7
+#define pk 5
+#define pz 5
+#define pxxi 5
 #define tol 1e-10
-#define maxiter 0
-#define kwidth 1.2
+#define maxiter 1000
+#define kwidth 1.15
 #define bwidth 1.15 
 #define llambda 0.2
 
+// This is a very model-specific version of the function it should be.
+// Future modification needs to deal with the creation of temporary array somehow.
+__host__ __device__
+double chebyeval_multi_old ( double k_cheby, double z_cheby, double xxi_cheby, double* coeff ) {
+	double eval = 0;
+	for (int t_xxi=0; t_xxi <= pxxi; t_xxi++) {
+		for (int t_z=0; t_z <= pz; t_z++) {
+			for (int t_k=0; t_k <=pk; t_k++ ) {
+				eval += coeff[t_k+t_z*(1+pk)+t_xxi*(1+pk)*(1+pz)]*
+				        chebypoly(t_k,k_cheby)*chebypoly(t_z,z_cheby)*chebypoly(t_xxi,xxi_cheby);
+			};
+		};
+	};
+	return eval;
+};
 
 void guess_vfi(const host_vector<double> K, const host_vector<double> Z, const host_vector<double> XXI, host_vector<double> & M, para p, double factor) {
 	// Try results from vfi iteration
@@ -146,6 +161,7 @@ struct findnewM
 		// Case 1: Binding
 		u1.compute(s,m,p,1);
 		kplus_cheby = -1 + (u1.kplus-minK)/(maxK-minK)*(2);
+		// printf("kplus_cheby=%f\n",kplus_cheby);
 
 		EM = 0;
 		for (int i_zplus=0; i_zplus<nz; i_zplus++) {
@@ -162,9 +178,11 @@ struct findnewM
 				size_vec[2] = pxxi+1;
 				int temp_subs[3];
 				EM += P[i_z+i_xxi*nz+nz*nxxi*i_zplus+nz*nxxi*nz*i_xxiplus]*chebyeval_multi(3,arg,size_vec,temp_subs,coeff);
+				// EM += P[i_z+i_xxi*nz+nz*nxxi*i_zplus+nz*nxxi*nz*i_xxiplus]*chebyeval_multi_old(kplus_cheby,zplus_cheby,xxiplus_cheby,coeff);
 			};
 		};
 		ctilde = (1-u1.mmu*s.xxi)/(bbeta*EM);
+		printf("case1 EM = %f\n",EM);
 
 		// Check whether implied policy functions make sense
 		if (
@@ -183,6 +201,7 @@ struct findnewM
 		kplus_cheby = -1 + (u2.kplus-minK)/(maxK-minK)*(2);
 
 		EM = 0;
+		summa = 0;
 		for (int i_zplus=0; i_zplus<nz; i_zplus++) {
 			zplus_cheby = Z_cheby[i_zplus];
 			for (int i_xxiplus=0; i_xxiplus<nxxi; i_xxiplus++) {
@@ -197,9 +216,11 @@ struct findnewM
 				size_vec[2] = pxxi+1;
 				int temp_subs[3];
 				EM += P[i_z+i_xxi*nz+nz*nxxi*i_zplus+nz*nxxi*nz*i_xxiplus]*chebyeval_multi(3,arg,size_vec,temp_subs,coeff);
+				// EM += P[i_z+i_xxi*nz+nz*nxxi*i_zplus+nz*nxxi*nz*i_xxiplus]*chebyeval_multi_old(kplus_cheby,zplus_cheby,xxiplus_cheby,coeff);
 			};
 		};
 		ctilde = (1-u2.mmu*s.xxi)/(bbeta*EM);
+		// printf("case2 EM = %f\n",EM);
 
 		if (
 			(ctilde>0) && (u2.c>0) && (u2.kplus>minK) && (u2.kplus<maxK) && (u2.kplus*xxi>u2.Y) && (u2.n>0) && (u2.n<1)
@@ -410,6 +431,7 @@ int main(int argc, char** argv)
 
 	// Create Initial M generated from linear solution
 	guess_vfi(h_K, h_Z, h_XXI, h_M, p, 1.0); 
+	save_vec(h_M,"./fpiter_results/M_guess.csv");
 
 	// Copy to the device
 	device_vector<double> d_K = h_K;
