@@ -133,8 +133,8 @@ bool eureka(state s, shadow m, control & u1, control & u2, para p, int i_z, int 
 	};
 
 	i_kplus = fit2grid(u1.kplus,nk,K);
-	interp_low = EM1_low[i_kplus+i_z*nk+i_xxi*nz*nk];
-	interp_high = EM1_high[i_kplus+i_z*nk+i_xxi*nz*nk];
+	interp_low = EM1_low[i_kplus+i_z*nk+i_xxi*nz*nk]+(u1.kplus-K[i_kplus])*(EM1_low[i_kplus+1+i_z*nk+i_xxi*nz*nk]-EM1_low[i_kplus+i_z*nk+i_xxi*nz*nk])/(K[i_kplus+1]-K[i_kplus]);
+	interp_high = EM1_high[i_kplus+i_z*nk+i_xxi*nz*nk]+(u1.kplus-K[i_kplus])*(EM1_high[i_kplus+1+i_z*nk+i_xxi*nz*nk]-EM1_high[i_kplus+i_z*nk+i_xxi*nz*nk])/(K[i_kplus+1]-K[i_kplus]);
 	if ( (u1.lhs1 > p.bbeta*interp_high) || (p.bbeta*interp_low > u1.lhs1) ) {
 		// Euler equation 1 fails
 		goto case2;
@@ -168,8 +168,8 @@ case2: // Not Binding
 	};
 
 	i_kplus = fit2grid(u2.kplus,nk,K);
-	interp_low = EM1_low[i_kplus+i_z*nk+i_xxi*nz*nk];
-	interp_high = EM1_high[i_kplus+i_z*nk+i_xxi*nz*nk];
+	interp_low = EM1_low[i_kplus+i_z*nk+i_xxi*nz*nk]+(u2.kplus-K[i_kplus])*(EM1_low[i_kplus+1+i_z*nk+i_xxi*nz*nk]-EM1_low[i_kplus+i_z*nk+i_xxi*nz*nk])/(K[i_kplus+1]-K[i_kplus]);
+	interp_high = EM1_high[i_kplus+i_z*nk+i_xxi*nz*nk]+(u2.kplus-K[i_kplus])*(EM1_high[i_kplus+1+i_z*nk+i_xxi*nz*nk]-EM1_high[i_kplus+i_z*nk+i_xxi*nz*nk])/(K[i_kplus+1]-K[i_kplus]);
 	if ( (u2.lhs1 > p.bbeta*interp_high) || (p.bbeta*interp_low > u2.lhs1) ) {
 		// Euler equation 1 fails
 		return false;
