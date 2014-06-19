@@ -253,7 +253,7 @@ struct findnewM
 		   )
 		{
 			M_new[index] = ((1-u1.mmu)*z*ttheta*pow(k,ttheta-1)*pow(u1.n,1-ttheta)+1-ddelta)/ctilde;
-			goto stop;
+			return;
 		} else {
 			goto case2;
 		}; 
@@ -292,9 +292,6 @@ struct findnewM
 		} else {
 			printf("No solution at k=%f, z=%f, xxi=%f, m=%f.\nPolicies are: c=%f, ctilde=%f, kplus=%f, mu=%f, n=%f\n====================================================\n",s.k,s.z,s.xxi,m.m1,u2.c,ctilde,u2.kplus,u2.mmu,u2.n);
 		};
-
-stop:
-		int shit = 0;
 	};
 };
 
