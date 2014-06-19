@@ -377,7 +377,7 @@ int main(int argc, char ** argv)
 	};
 
 	// Obtain initial guess from linear solution
-	guess_vfi(h_K, h_Z, h_XXI, h_V1_low, h_V1_high, p, 100) ;
+	guess_linear(h_K, h_Z, h_XXI, h_V1_low, h_V1_high, p, 0.8,1.2) ;
 
 	// Copy to the device
 	device_vector<double> d_K = h_K;
