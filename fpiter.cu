@@ -662,8 +662,8 @@ int main(int argc, char** argv)
 	int nkout = 50001;
 	host_vector<double> h_Kgrid(nkout);
 	host_vector<double> h_Kgrid_cheby(nkout);
-	linspace(minK,maxK,nkout,h_Kgrid.data());
 	chebyroots(nkout,h_Kgrid_cheby.data());
+	chebyspace(minK,maxK,nkout,h_Kgrid.data());
 	device_vector<double> d_Kgrid = h_Kgrid;
 	device_vector<double> d_Kgrid_cheby = h_Kgrid_cheby;
 	device_vector<double> d_copt(nkout*nz*nxxi);

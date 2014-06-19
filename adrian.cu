@@ -5,10 +5,10 @@
  */
 
 #define nk 2560
-#define nz 9
-#define nxxi 9
+#define nz 11
+#define nxxi 11 
 #define nm1 5120 
-#define tol 1e-6
+#define tol 1e-7
 #define maxiter 2500
 #define kwidth 1.2
 #define mkwidth 20.0 

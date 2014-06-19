@@ -2,7 +2,7 @@
 #define nm1 2560
 #define nz 23
 #define nxxi 23
-#define tol 1e-10
+#define tol 1e-7
 #define maxiter 2500
 #define kwidth 1.5
 
