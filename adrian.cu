@@ -117,12 +117,12 @@ bool eureka(state s, shadow m, control & u1, control & u2, para p, int i_z, int 
 	if (u1.kplus <= 0) {
 		goto case2;
 	};
-	// if (u.kplus < k[0]) {
-	// 	goto case2;
-	// };
-	// if (u.kplus > k[nk-1]) {
-	// 	goto case2;
-	// };
+	if (u1.kplus < K[0]) {
+		goto case2;
+	};
+	if (u1.kplus > K[nk-1]) {
+		goto case2;
+	};
 	if (u1.mmu < 0) {
 		// LM shouldn't be negative
 		goto case2;
@@ -152,12 +152,12 @@ case2: // Not Binding
 	if (u2.kplus <= 0) {
 		return false;
 	};
-	// if (u2.kplus < K[0]) {
-	// 	return false;
-	// };
-	// if (u2.kplus > K[nk-1]) {
-	// 	return false;
-	// };
+	if (u2.kplus < K[0]) {
+		return false;
+	};
+	if (u2.kplus > K[nk-1]) {
+		return false;
+	};
 	if (s.xxi*u2.kplus <= u2.Y) {
 		// Financial constraint shouldn't be binding 
 		return false;
@@ -377,7 +377,7 @@ int main(int argc, char ** argv)
 	};
 
 	// Obtain initial guess from linear solution
-	guess_vfi(h_K, h_Z, h_XXI, h_V1_low, h_V1_high, p, 1.05) ;
+	guess_vfi(h_K, h_Z, h_XXI, h_V1_low, h_V1_high, p, 100) ;
 
 	// Copy to the device
 	device_vector<double> d_K = h_K;

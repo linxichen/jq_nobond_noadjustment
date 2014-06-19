@@ -75,7 +75,7 @@ veryclean :
 	rm -f core core.*
 	rm -f $(EXEC)
 
-run : all
+run : adrian 
 	./adrian
 
 runvfi : vfi

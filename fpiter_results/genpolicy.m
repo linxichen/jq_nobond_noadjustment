@@ -8,7 +8,12 @@ close all
 Kgrid = csvread('Kgrid.csv');
 Zgrid = csvread('Zgrid.csv');
 XXIgrid = csvread('XXIgrid.csv');
+coeff = csvread('coeff.csv');
 P = csvread('P.csv');
+
+pk = 6;
+pz = 6;
+pxxi = 6;
 
 nk = length(Kgrid); % nb = length(Bgrid);
 nz = length(Zgrid); nxxi = length(XXIgrid);
@@ -36,6 +41,7 @@ coptcuda = reshape(coptcuda,[nk,nz,nxxi]);
 ncuda = reshape(ncuda,[nk,nz,nxxi]);
 %wagecuda = reshape(wagecuda,[nk,nz,nxi]);
 mmucuda = reshape(mmucuda,[nk,nz,nxxi]);
+coeff = reshape(coeff,[pk+1 pz+1 pxxi+1]);
 
 P = reshape(P,[nz*nxxi nz*nxxi]);
 

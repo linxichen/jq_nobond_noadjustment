@@ -32,19 +32,19 @@ using namespace std;
 using namespace thrust;
 
 // #define M_PI 3.14159265358979323846264338328
-#define nk 11
+#define nk 50 
 #define nb 1 
-#define nz 7
-#define nxxi 7
+#define nz 21 
+#define nxxi 21 
 #define nm1 501 
-#define pk 4
-#define pz 4
-#define pxxi 4
+#define pk 6
+#define pz 6
+#define pxxi 6
 #define tol 1e-7
 #define maxiter 1000
 #define kwidth 1.3
 #define bwidth 1.15 
-#define llambda 0.7
+#define llambda 0.9
 
 struct findpolicy {
 	// Data member
@@ -492,7 +492,8 @@ int main(int argc, char** argv)
 	chebyroots(nxxi,h_XXI_cheby_ptr);
 
 	// Create Initial M generated from linear solution
-	guess_vfi(h_K, h_Z, h_XXI, h_M, p, 1.0); 
+	guess_linear(h_K,h_Z, h_XXI, h_M, p, 1.0);
+	// guess_vfi(h_K, h_Z, h_XXI, h_M, p, 1.0); 
 	save_vec(h_M,"./fpiter_results/M_guess.csv");
 
 	// Copy to the device
