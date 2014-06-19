@@ -32,19 +32,19 @@ using namespace std;
 using namespace thrust;
 
 // #define M_PI 3.14159265358979323846264338328
-#define nk 50 
+#define nk 100
 #define nb 1 
-#define nz 21 
-#define nxxi 21 
+#define nz 12 
+#define nxxi 12 
 #define nm1 501 
-#define pk 6
-#define pz 6
-#define pxxi 6
+#define pk 7
+#define pz 7
+#define pxxi 7
 #define tol 1e-7
 #define maxiter 1000
-#define kwidth 1.3
+#define kwidth 1.2
 #define bwidth 1.15 
-#define llambda 0.9
+#define llambda 0.5
 
 struct findpolicy {
 	// Data member
@@ -659,7 +659,7 @@ int main(int argc, char** argv)
 	cout << "Time= " << msecPerMatrixMul << " msec, iter= " << iter << endl;
 
 	// Find policy
-	int nkout = 2501;
+	int nkout = 50001;
 	host_vector<double> h_Kgrid(nkout);
 	host_vector<double> h_Kgrid_cheby(nkout);
 	linspace(minK,maxK,nkout,h_Kgrid.data());
@@ -703,6 +703,14 @@ int main(int argc, char** argv)
     save_vec(h_M,"./fpiter_results/M.csv");
     save_vec(h_M_new,"./fpiter_results/M_new.csv");
 	p.exportmatlab("./MATLAB/fpiter_para.m");
+
+	// Save accuracy controls
+	std::ofstream fileout("./fpiter_results/accuracy.m", std::ofstream::trunc);
+	fileout << std::setprecision(16) << "pk=" << pk << ";"<< std::endl;
+	fileout << std::setprecision(16) << "pz=" << pz<< ";"<< std::endl;
+	fileout << std::setprecision(16) << "pxxi=" << pxxi<< ";"<< std::endl;
+	fileout.close();
+
     return 0;
 };
 

@@ -161,17 +161,36 @@ surf(Zgrid,Kgrid,squeeze(mmucuda(:,:,ceil(nxxi/2))),'EdgeColor','none','LineStyl
 xlabel('TFP Shock'); ylabel('Capital'); zlabel('\mu_t')
 print -f -depsc2 '3dmmu_new.eps'
 
-%% Find peak of dist_K
-[~,ind] = max(dist_K(:));
-[i_k,i_z,i_xxi] = ind2sub([nk nz nxxi],ind);
+%% Find Euler equation error
+burnin = 1000;
+T = 10000+burnin;
+u = rand(1,T);
+kindex = ones(1,T);
+zindex = ones(1,T);
+xxiindex = ones(1,T);
+k = kss*ones(1,T);
 
-kk_1 = csvread('kk_1.csv');
-kk_2 = csvread('kk_2.csv');
-lhs1_1 = csvread('lhs1_1.csv');
-lhs1_2 = csvread('lhs1_2.csv');
-rhslow_1 = csvread('rhslow_1.csv');
-rhshigh_1 = csvread('rhshigh_1.csv');
-rhslow_2 = csvread('rhslow_2.csv');
-rhshigh_2 = csvread('rhshigh_2.csv');
-nn_1 = csvread('nn_1.csv');
-nn_2 = csvread('nn_2.csv');
+for t = 1:T-1
+    k(t+1) = koptcuda(kindex(t),zindex(t),xxiindex(t));
+    cdf = cumsum(P(sub2ind([nz nxxi],zindex(t),xxiindex(t)),:));
+    agg_shock = find(cdf>u(t),1,'first');
+    [zindex(t+1),xxiindex(t+1)] = ind2sub([nz nxxi],agg_shock);
+    [~,kindex(t+1)] = min(abs(Kgrid-k(t+1))); 
+end
+
+eee = zeros(1,T-burnin);
+for i = burnin+1:T
+    c = coptcuda(kindex(i),zindex(i),xxiindex(i));
+    kplus = koptcuda(kindex(i),zindex(i),xxiindex(i));
+    [~,i_kplus] = min(abs(Kgrid-kplus)); 
+    sum = 0;
+    for i_zplus = 1:nz
+        for i_xxiplus = 1:nxxi
+            sum = sum + bbeta*P(sub2ind([nz nxxi],zindex(i),xxiindex(i)),sub2ind([nz nxxi],i_zplus,i_xxiplus))*(1-ddelta+(1-mmucuda(i_kplus,i_zplus,i_xxiplus))*ttheta*Zgrid(i_zplus)*Kgrid(i_kplus)^(ttheta-1)*ncuda(i_kplus,i_zplus,i_xxiplus)^(1-ttheta))/(coptcuda(i_kplus,i_zplus,i_xxiplus));
+        end
+    end
+    ctilde = (1-mmucuda(kindex(i),zindex(i),xxiindex(i))*XXIgrid(xxiindex(i)))/sum;
+    eee(i) = abs(c/ctilde-1);
+end
+
+eulererror = mean(eee(burnin+1:end))

@@ -2,7 +2,6 @@ clear all
 clc 
 close all
 
-
 %% Parameters that are used
 % Bgrid = csvread('Bgridcuda.csv');
 Kgrid = csvread('Kgrid.csv');
@@ -11,15 +10,13 @@ XXIgrid = csvread('XXIgrid.csv');
 coeff = csvread('coeff.csv');
 P = csvread('P.csv');
 
-pk = 6;
-pz = 6;
-pxxi = 6;
-
 nk = length(Kgrid); % nb = length(Bgrid);
 nz = length(Zgrid); nxxi = length(XXIgrid);
 cd ../MATLAB
 fpiter_para;
 cd ../fpiter_results;
+accuracy;
+
 %% Read in shadow value and policy functions
 koptcuda = csvread('kopt.csv');
 coptcuda = csvread('copt.csv');
