@@ -162,6 +162,14 @@ struct state {
 		zkttheta = _z*pow(_k,p.ttheta);
 	};
 
+	// Alternative constructor
+	__host__ __device__
+	state(double _k, double _z, double _xxi, double _zkttheta) {
+		k = _k;
+		z = _z;
+		xxi = _xxi;
+		zkttheta = _zkttheta;
+	};
 	__host__ __device__
 	void load(double _k, double _z, double _xxi, para p) {
 		k = _k;

@@ -4,11 +4,11 @@
  * is the asymmetry of policy functions.
  */
 
-#define nk 512
+#define nk 384 
 #define nz 13
 #define nxxi 13 
-#define nm1 512 
-#define tol 1e-7
+#define nm1 384 
+#define tol 1e-6
 #define maxiter 2500
 #define kwidth 1.2
 #define mkwidth 20.0 
@@ -132,9 +132,9 @@ bool eureka(const state s, const shadow m, control & u1, control & u2, para p, i
 		goto case2;
 	};
 
-	i_kplus = fit2grid(u1.kplus,nk,K);
-	interp_low = EM1_low[i_kplus+i_z*nk+i_xxi*nz*nk]+(u1.kplus-K[i_kplus])*(EM1_low[i_kplus+1+i_z*nk+i_xxi*nz*nk]-EM1_low[i_kplus+i_z*nk+i_xxi*nz*nk])/(K[i_kplus+1]-K[i_kplus]);
-	interp_high = EM1_high[i_kplus+i_z*nk+i_xxi*nz*nk]+(u1.kplus-K[i_kplus])*(EM1_high[i_kplus+1+i_z*nk+i_xxi*nz*nk]-EM1_high[i_kplus+i_z*nk+i_xxi*nz*nk])/(K[i_kplus+1]-K[i_kplus]);
+	i_kplus = fit2evengrid(u1.kplus,nk,K[0],K[nk-1]);
+	interp_low = EM1_low[i_kplus+i_z*nk+i_xxi*nz*nk]+(i_kplus<nk-1)*(u1.kplus-K[i_kplus])*(EM1_low[i_kplus+1+i_z*nk+i_xxi*nz*nk]-EM1_low[i_kplus+i_z*nk+i_xxi*nz*nk])/(K[i_kplus+1]-K[i_kplus]);
+	interp_high = EM1_high[i_kplus+i_z*nk+i_xxi*nz*nk]+(i_kplus<nk-1)*(u1.kplus-K[i_kplus])*(EM1_high[i_kplus+1+i_z*nk+i_xxi*nz*nk]-EM1_high[i_kplus+i_z*nk+i_xxi*nz*nk])/(K[i_kplus+1]-K[i_kplus]);
 	if ( (u1.lhs1 > p.bbeta*interp_high) || (p.bbeta*interp_low > u1.lhs1) ) {
 		// Euler equation 1 fails
 		goto case2;
@@ -167,9 +167,9 @@ case2: // Not Binding
 		return false;
 	};
 
-	i_kplus = fit2grid(u2.kplus,nk,K);
-	interp_low = EM1_low[i_kplus+i_z*nk+i_xxi*nz*nk]+(u2.kplus-K[i_kplus])*(EM1_low[i_kplus+1+i_z*nk+i_xxi*nz*nk]-EM1_low[i_kplus+i_z*nk+i_xxi*nz*nk])/(K[i_kplus+1]-K[i_kplus]);
-	interp_high = EM1_high[i_kplus+i_z*nk+i_xxi*nz*nk]+(u2.kplus-K[i_kplus])*(EM1_high[i_kplus+1+i_z*nk+i_xxi*nz*nk]-EM1_high[i_kplus+i_z*nk+i_xxi*nz*nk])/(K[i_kplus+1]-K[i_kplus]);
+	i_kplus = fit2evengrid(u2.kplus,nk,K[0],K[nk-1]);
+	interp_low = EM1_low[i_kplus+i_z*nk+i_xxi*nz*nk]+(i_kplus<nk-1)*(u2.kplus-K[i_kplus])*(EM1_low[i_kplus+1+i_z*nk+i_xxi*nz*nk]-EM1_low[i_kplus+i_z*nk+i_xxi*nz*nk])/(K[i_kplus+1]-K[i_kplus]);
+	interp_high = EM1_high[i_kplus+i_z*nk+i_xxi*nz*nk]+(i_kplus<nk-1)*(u2.kplus-K[i_kplus])*(EM1_high[i_kplus+1+i_z*nk+i_xxi*nz*nk]-EM1_high[i_kplus+i_z*nk+i_xxi*nz*nk])/(K[i_kplus+1]-K[i_kplus]);
 	if ( (u2.lhs1 > p.bbeta*interp_high) || (p.bbeta*interp_low > u2.lhs1) ) {
 		// Euler equation 1 fails
 		return false;
@@ -238,10 +238,10 @@ struct shrink
 
 		// Find and construct state and control, otherwise they won't update in the for loop
 		double k =K[i_k]; double z=Z[i_z]; double xxi=XXI[i_xxi];
-		state s(k,z,xxi,p);
+		state s(k,z,xxi,z*pow(k,p.ttheta));
 		control u1, u2;
 
-		// Initial search to find the min m
+		// Initial hunt for the min m
 		for (int i_m1min = 0; i_m1min < nm1; i_m1min++) {
 			// Construct state and find control variables
 			double m1 = m1min+double(i_m1min)*step1;
@@ -332,6 +332,11 @@ int main(int argc, char ** argv)
 		int gpu = atoi(argv[1]);
 		cudaSetDevice(gpu);
 	};
+	bool noisy = false;
+	if (argc > 2) {
+		std::string argv2 = argv[2];
+		if (argv2 == "noisy") noisy = true;
+	};
 	// Only for cuBLAS
 	const double alpha = 1.0;
 	const double beta = 0.0;
@@ -377,7 +382,7 @@ int main(int argc, char ** argv)
 	};
 
 	// Obtain initial guess from linear solution
-	guess_linear(h_K, h_Z, h_XXI, h_V1_low, h_V1_high, p, 0.5,1.5) ;
+	guess_linear(h_K, h_Z, h_XXI, h_V1_low, h_V1_high, p, 0.3,1.7) ;
 
 	// Copy to the device
 	device_vector<double> d_K = h_K;
@@ -493,21 +498,20 @@ int main(int argc, char ** argv)
 		diff = max(diff1,-99.0);
 		dist = max(dist1,-99.0);
 
-		cout << "diff is: "<< diff << endl;
-		cout << "dist is: "<< dist << endl;
-		cout << "Vplus1[117,2,4] (the spike) range is " << d_Vplus1_low[117+2*nk+4*nk*nz] << ", " << d_Vplus1_high[117+2*nk+4*nk*nz] << endl;
-
 		// update correspondence
 		d_V1_low = d_Vplus1_low; d_V1_high = d_Vplus1_high;
+		iter++;
 
-		cout << ++iter << endl;
-		cout << "=====================" << endl;
-
+		// Display 
+		if (noisy == true) {
+			cout << "diff is: "<< diff << endl;
+			cout << "dist is: "<< dist << endl;
+			cout << "Vplus1[117,2,4] (the spike) range is " << d_Vplus1_low[117+2*nk+4*nk*nz] << ", " << d_Vplus1_high[117+2*nk+4*nk*nz] << endl;
+			cout << iter << endl;
+			cout << "=====================" << endl;
+		};
 	};
 
-	//==========cuBLAS stuff ends=======================
-	// Step.3 Destroy the handle.
-	cublasDestroy(handle);
 
 	// Stop Timer
 	cudaEventRecord(stop,NULL);
@@ -515,9 +519,13 @@ int main(int argc, char ** argv)
 	float msecTotal = 0.0;
 	cudaEventElapsedTime(&msecTotal, start, stop);
 
+	//==========cuBLAS stuff ends=======================
+	// Step.3 Destroy the handle.
+	cublasDestroy(handle);
+
 	// Compute and print the performance
 	float msecPerMatrixMul = msecTotal;
-	cout << "Time= " << msecPerMatrixMul << " msec, iter= " << iter << endl;
+	cout << "Time= " << msecPerMatrixMul << " msec, iter= " << iter << ", Dist = " << dist << endl;
 
 	// Copy back to host and print to file
 	h_V1_low = d_V1_low; h_V1_high = d_V1_high;

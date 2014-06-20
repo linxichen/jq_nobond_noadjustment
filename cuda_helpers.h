@@ -52,6 +52,15 @@ int fit2grid(const double x, const int n, const double* X) {
 	}
 };
 
+// This function fit a valuex x to a "even" grid X of size n. Even means equi-distance among grid points.
+// The largest value on grid X that is smaller than x is returned ("left grid point" is returned).
+__host__ __device__
+int fit2evengrid(const double x, const int n, const double min, const double max) {
+	if (x <= min) return 0;
+	if (x >= max) return n-1;
+	double step = (max-min)/(n-1);
+	return floor((x-min)/step);
+};
 // This function fit a valuex x to a grid X of size n. For std::vector like stuff
 // The largest value on grid X that is smaller than x is returned ("left grid point" is returned).
 template <class T>
@@ -234,7 +243,7 @@ double newton(T func, const double x1, const double x2, double x0) {
 // Purpose: Tries to find a root for function named func. Its first derivative is given by func.prime().
 //			func is only defined on [x1,x2] We "pull back" when outside. x0 is the guess.
 	const int newton_maxiter = 20;
-	const double newton_tol = 1e-5;
+	const double newton_tol = 1e-4;
 	// Initialize guess and other things
 	double x_old = x0;
 	double x = x0;

@@ -18,7 +18,7 @@ LDIR     = .
 NVCC      = nvcc
 
 # CUDA compiling options
-NVCCFLAGS =  -arch sm_35
+NVCCFLAGS =  -arch sm_35 #-use_fast_math
 
 # Compiler for C code
 CXX       = g++
