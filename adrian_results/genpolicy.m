@@ -50,15 +50,15 @@ P = reshape(P,[nz*nxxi nz*nxxi]);
 flagcuda = reshape(flagcuda,[nk,nz,nxxi]);
 
 %% Find the gap between high and low
-dist_K = MK_high - MK_low;
-figure
-surf(Zgrid,Kgrid(end-20:end),squeeze(dist_K(end-20:end,:,ceil(nxxi/2))),'EdgeColor','none','LineStyle','none','FaceLighting','phong')
-xlabel('TFP Shock'); ylabel('Capital'); zlabel('Dist of Shadow Val Investment')
-
-dist_K = MK_high - MK_low;
-figure
-surf(Zgrid,Kgrid(end-20:end),squeeze(flagcuda(end-20:end,:,ceil(nxxi/2))),'EdgeColor','none','LineStyle','none','FaceLighting','phong')
-xlabel('TFP Shock'); ylabel('Capital'); zlabel('Flags')
+% dist_K = MK_high - MK_low;
+% figure
+% surf(Zgrid,Kgrid(end-20:end),squeeze(dist_K(end-20:end,:,ceil(nxxi/2))),'EdgeColor','none','LineStyle','none','FaceLighting','phong')
+% xlabel('TFP Shock'); ylabel('Capital'); zlabel('Dist of Shadow Val Investment')
+% 
+% dist_K = MK_high - MK_low;
+% figure
+% surf(Zgrid,Kgrid(end-20:end),squeeze(flagcuda(end-20:end,:,ceil(nxxi/2))),'EdgeColor','none','LineStyle','none','FaceLighting','phong')
+% xlabel('TFP Shock'); ylabel('Capital'); zlabel('Flags')
 
 
 %%
@@ -110,9 +110,9 @@ dcuda_occa = dcuda;
 ncuda_occa = ncuda;
 mmucuda_occa = mmucuda;
 
-figure
-surf(Zgrid,Kgrid,squeeze(dist_K(:,:,ceil(nxxi/2))),'EdgeColor','none','LineStyle','none','FaceLighting','phong')
-xlabel('TFP Shock'); ylabel('Capital'); zlabel('Dist of Shadow Val Investment')
+% figure
+% surf(Zgrid,Kgrid,squeeze(dist_K(:,:,ceil(nxxi/2))),'EdgeColor','none','LineStyle','none','FaceLighting','phong')
+% xlabel('TFP Shock'); ylabel('Capital'); zlabel('Dist of Shadow Val Investment')
 
 
 %%
@@ -121,45 +121,45 @@ dist_K = MK_high-MK_low;
 % dist_B = MB_high-MB_low;
 
 % 3D distance check
-figure
-plot(Kgrid,squeeze(dist_K(:,nz,1)))
-xlabel('Capital'); ylabel('Distance K');
-print -f -depsc2 '2ddistance1.eps'
-title('i_z=5, i_b=1')
+% figure
+% plot(Kgrid,squeeze(dist_K(:,nz,1)))
+% xlabel('Capital'); ylabel('Distance K');
+% print -f -depsc2 '2ddistance1.eps'
+% title('i_z=5, i_b=1')
+% 
+% % 3D distance check
+% figure
+% plot(Kgrid,squeeze(dist_K(:,1,nxxi)))
+% xlabel('Capital'); ylabel('Distance K');
+% print -f -depsc2 '2ddistance2.eps'
+% title('i_z=5, i_b=1')
 
 % 3D distance check
-figure
-plot(Kgrid,squeeze(dist_K(:,1,nxxi)))
-xlabel('Capital'); ylabel('Distance K');
-print -f -depsc2 '2ddistance2.eps'
-title('i_z=5, i_b=1')
-
-% 3D distance check
-figure
-plot(Kgrid,squeeze(dist_K(:,tfp,ceil(nxxi/2))))
-xlabel('Capital'); ylabel('Distance K');
-print -f -depsc2 '2ddistance2.eps'
-title('i_z=5, i_b=1')
-
-figure
-surf(Zgrid,Kgrid,squeeze(dist_K(:,:,ceil(nxxi/2))),'EdgeColor','none','LineStyle','none','FaceLighting','phong')
-xlabel('TFP Shock'); ylabel('Capital'); zlabel('Dist of Shadow Val Investment')
-print -f -depsc2 '3ddistance_new.eps'
-
-figure
-surf(Zgrid,Kgrid,squeeze(dist_K(:,:,end)),'EdgeColor','none','LineStyle','none','FaceLighting','phong')
-xlabel('TFP Shock'); ylabel('Capital'); zlabel('Dist of Shadow Val Investment')
-print -f -depsc2 '3ddistance_new.eps'
-
-figure
-surf(Zgrid,Kgrid,squeeze(flagcuda(:,:,ceil(nxxi/2))))
-xlabel('TFP Shock'); ylabel('Capital'); zlabel('flag')
-print -f -depsc2 '3dflag_new.eps'
-
-figure
-surf(Zgrid,Kgrid,squeeze(mmucuda(:,:,ceil(nxxi/2))),'EdgeColor','none','LineStyle','none','FaceLighting','phong')
-xlabel('TFP Shock'); ylabel('Capital'); zlabel('\mu_t')
-print -f -depsc2 '3dmmu_new.eps'
+% figure
+% plot(Kgrid,squeeze(dist_K(:,tfp,ceil(nxxi/2))))
+% xlabel('Capital'); ylabel('Distance K');
+% print -f -depsc2 '2ddistance2.eps'
+% title('i_z=5, i_b=1')
+% 
+% figure
+% surf(Zgrid,Kgrid,squeeze(dist_K(:,:,ceil(nxxi/2))),'EdgeColor','none','LineStyle','none','FaceLighting','phong')
+% xlabel('TFP Shock'); ylabel('Capital'); zlabel('Dist of Shadow Val Investment')
+% print -f -depsc2 '3ddistance_new.eps'
+% 
+% figure
+% surf(Zgrid,Kgrid,squeeze(dist_K(:,:,end)),'EdgeColor','none','LineStyle','none','FaceLighting','phong')
+% xlabel('TFP Shock'); ylabel('Capital'); zlabel('Dist of Shadow Val Investment')
+% print -f -depsc2 '3ddistance_new.eps'
+% 
+% figure
+% surf(Zgrid,Kgrid,squeeze(flagcuda(:,:,ceil(nxxi/2))))
+% xlabel('TFP Shock'); ylabel('Capital'); zlabel('flag')
+% print -f -depsc2 '3dflag_new.eps'
+% 
+% figure
+% surf(Zgrid,Kgrid,squeeze(mmucuda(:,:,ceil(nxxi/2))),'EdgeColor','none','LineStyle','none','FaceLighting','phong')
+% xlabel('TFP Shock'); ylabel('Capital'); zlabel('\mu_t')
+% print -f -depsc2 '3dmmu_new.eps'
 
 %% Find Euler equation error
 burnin = 1000;

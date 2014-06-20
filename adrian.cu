@@ -4,10 +4,10 @@
  * is the asymmetry of policy functions.
  */
 
-#define nk 2560
-#define nz 11
-#define nxxi 11 
-#define nm1 5120 
+#define nk 512
+#define nz 13
+#define nxxi 13 
+#define nm1 512 
 #define tol 1e-7
 #define maxiter 2500
 #define kwidth 1.2
@@ -103,7 +103,7 @@ void guess_linear(const host_vector<double> K, const host_vector<double> Z, cons
 };
 
 __host__ __device__
-bool eureka(state s, shadow m, control & u1, control & u2, para p, int i_z, int i_xxi, double* EM1_low, double* EM1_high, double* K) {
+bool eureka(const state s, const shadow m, control & u1, control & u2, para p, int i_z, int i_xxi, double* EM1_low, double* EM1_high, double* K) {
 	double interp_low, interp_high;
 	int i_kplus;
 
@@ -377,7 +377,7 @@ int main(int argc, char ** argv)
 	};
 
 	// Obtain initial guess from linear solution
-	guess_linear(h_K, h_Z, h_XXI, h_V1_low, h_V1_high, p, 0.8,1.2) ;
+	guess_linear(h_K, h_Z, h_XXI, h_V1_low, h_V1_high, p, 0.5,1.5) ;
 
 	// Copy to the device
 	device_vector<double> d_K = h_K;

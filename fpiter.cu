@@ -32,19 +32,19 @@ using namespace std;
 using namespace thrust;
 
 // #define M_PI 3.14159265358979323846264338328
-#define nk 100
+#define nk 12 
 #define nb 1 
-#define nz 12 
-#define nxxi 12 
+#define nz 13 
+#define nxxi 13 
 #define nm1 501 
-#define pk 7
-#define pz 7
-#define pxxi 7
+#define pk 6
+#define pz 6
+#define pxxi 6
 #define tol 1e-7
 #define maxiter 1000
 #define kwidth 1.2
 #define bwidth 1.15 
-#define llambda 0.5
+#define llambda 0.95
 
 struct findpolicy {
 	// Data member

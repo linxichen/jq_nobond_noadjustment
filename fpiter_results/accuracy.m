@@ -1,3 +1,3 @@
-pk=7;
-pz=7;
-pxxi=7;
+pk=6;
+pz=6;
+pxxi=6;
