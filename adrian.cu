@@ -4,13 +4,13 @@
  * is the asymmetry of policy functions.
  */
 
-#define nk 384 
+#define nk 250
 #define nz 13
 #define nxxi 13 
-#define nm1 384 
-#define tol 1e-6
+#define nm1 15 
+#define tol 1e-7
 #define maxiter 2500
-#define kwidth 1.2
+#define kwidth 1.1
 #define mkwidth 20.0 
 
 /* Includes, system */
@@ -235,6 +235,8 @@ struct shrink
 		double m1max_old = m1max;
 		double step1 = (m1max_old-m1min_old)/double(nm1-1);
 		double tempflag = 0.0;
+		double left, mid, right;
+		int n_bisect = 1;
 
 		// Find and construct state and control, otherwise they won't update in the for loop
 		double k =K[i_k]; double z=Z[i_z]; double xxi=XXI[i_xxi];
@@ -252,6 +254,19 @@ struct shrink
 			};
 		};
 
+		// Bisect a few times to be accurate
+		for (int i_bisect = 0; i_bisect < n_bisect; i_bisect++ ) {
+			left = m1min - step1;
+			right = m1min;
+			mid = (left + right)/2;
+			if (eureka(s,shadow(mid),u1,u2,p,i_z,i_xxi,EM1_low,EM1_high,K)) {
+				right = mid;
+			} else {
+				left = mid;
+			};
+		};	
+		m1min = left;
+
 		// Initial search to find the max m
 		for (int i_m1max = 0; i_m1max < nm1; i_m1max++) {
 			// Construct state and find control variables
@@ -263,10 +278,23 @@ struct shrink
 			};
 		};
 
+		// Bisect a few times to be accurate
+		for (int i_bisect = 0; i_bisect < n_bisect; i_bisect++ ) {
+			left = m1max;
+			right = m1max + step1;
+			mid = (left + right)/2;
+			if (eureka(s,shadow(mid),u1,u2,p,i_z,i_xxi,EM1_low,EM1_high,K)) {
+				left = mid;
+			} else {
+				right = mid;
+			};
+		};	
+		m1max = right;
+
 		// Update Vs
 		flag[index] = double(tempflag)/double(nm1);
-		Vplus1_high[index] = m1max + step1*int((m1max<m1max_old));
-		Vplus1_low[index] = m1min - step1*int((m1min>m1min_old));
+		Vplus1_high[index] = m1max; 
+		Vplus1_low[index] = m1min; 
 	};
 };	
 
