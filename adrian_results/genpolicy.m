@@ -161,35 +161,40 @@ dist_K = MK_high-MK_low;
 % xlabel('TFP Shock'); ylabel('Capital'); zlabel('\mu_t')
 % print -f -depsc2 '3dmmu_new.eps'
 
+
 %% Find Euler equation error
 burnin = 1000;
+interp_method = 'linear';
 T = 10000+burnin;
 u = rand(1,T);
 kindex = ones(1,T);
 zindex = ones(1,T);
 xxiindex = ones(1,T);
-k = kss*ones(1,T);
+k = Kgrid(1)*ones(1,T);
 
 for t = 1:T-1
-    k(t+1) = koptcuda(kindex(t),zindex(t),xxiindex(t));
+    k(t+1) = interp1(Kgrid,koptcuda(:,zindex(t),xxiindex(t)),k(t),interp_method);
     cdf = cumsum(P(sub2ind([nz nxxi],zindex(t),xxiindex(t)),:));
     agg_shock = find(cdf>u(t),1,'first');
     [zindex(t+1),xxiindex(t+1)] = ind2sub([nz nxxi],agg_shock);
-    [~,kindex(t+1)] = min(abs(Kgrid-k(t+1))); 
 end
 
-eee = zeros(1,T-burnin);
+eee = zeros(1,T);
 for i = burnin+1:T
-    c = coptcuda(kindex(i),zindex(i),xxiindex(i));
-    kplus = koptcuda(kindex(i),zindex(i),xxiindex(i));
-    [~,i_kplus] = min(abs(Kgrid-kplus)); 
+    c = interp1(Kgrid,coptcuda(:,zindex(i),xxiindex(i)),k(i),interp_method);
+    kplus = interp1(Kgrid,koptcuda(:,zindex(i),xxiindex(i)),k(i),interp_method);
+    mmu = interp1(Kgrid,mmucuda(:,zindex(i),xxiindex(i)),k(i),interp_method);
+    
     sum = 0;
     for i_zplus = 1:nz
         for i_xxiplus = 1:nxxi
-            sum = sum + bbeta*P(sub2ind([nz nxxi],zindex(i),xxiindex(i)),sub2ind([nz nxxi],i_zplus,i_xxiplus))*(1-ddelta+(1-mmucuda(i_kplus,i_zplus,i_xxiplus))*ttheta*Zgrid(i_zplus)*Kgrid(i_kplus)^(ttheta-1)*ncuda(i_kplus,i_zplus,i_xxiplus)^(1-ttheta))/(coptcuda(i_kplus,i_zplus,i_xxiplus));
+            mmuplus = interp1(Kgrid,mmucuda(:,zindex(i_zplus),xxiindex(i_xxiplus)),kplus,interp_method);
+            nplus = interp1(Kgrid,ncuda(:,zindex(i_zplus),xxiindex(i_xxiplus)),kplus,interp_method);
+            cplus = interp1(Kgrid,coptcuda(:,zindex(i_zplus),xxiindex(i_xxiplus)),kplus,interp_method);
+            sum = sum + bbeta*P(sub2ind([nz nxxi],zindex(i),xxiindex(i)),sub2ind([nz nxxi],i_zplus,i_xxiplus))*(1-ddelta+(1-mmuplus)*ttheta*Zgrid(i_zplus)*kplus^(ttheta-1)*nplus^(1-ttheta))/cplus;
         end
     end
-    ctilde = (1-mmucuda(kindex(i),zindex(i),xxiindex(i))*XXIgrid(xxiindex(i)))/sum;
+    ctilde = (1-mmu*XXIgrid(xxiindex(i)))/sum;
     eee(i) = abs(c/ctilde-1);
 end
 

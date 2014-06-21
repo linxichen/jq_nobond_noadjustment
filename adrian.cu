@@ -4,13 +4,13 @@
  * is the asymmetry of policy functions.
  */
 
-#define nk 250
+#define nk 200
 #define nz 13
 #define nxxi 13 
-#define nm1 15 
+#define nm1 50
 #define tol 1e-7
 #define maxiter 2500
-#define kwidth 1.1
+#define kwidth 1.2
 #define mkwidth 20.0 
 
 /* Includes, system */
@@ -236,7 +236,7 @@ struct shrink
 		double step1 = (m1max_old-m1min_old)/double(nm1-1);
 		double tempflag = 0.0;
 		double left, mid, right;
-		int n_bisect = 1;
+		int n_bisect = 3;
 
 		// Find and construct state and control, otherwise they won't update in the for loop
 		double k =K[i_k]; double z=Z[i_z]; double xxi=XXI[i_xxi];
